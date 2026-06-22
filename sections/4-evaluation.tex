@@ -1,76 +1,67 @@
-%%%%%%%%%%%%Outline%%%%%%%%%%%%%%%%%%
-
-% ==== opening: the three research questions ====
-%%%
-% message<the evaluation asks three questions: localization, attribution, and repair usefulness>
-% we evaluate \sys with three questions
-% RQ1 asks whether \sys localizes the proof break better than trusting the rejected line
-% RQ2 asks whether \sys assigns the correct failure class and beats a message-level baseline
-% RQ3 asks whether the structured diagnostic helps a developer repair the program
-
-% ==== Setup ====
-%%%
-% message<bpfix-bench is a replay-disciplined corpus with independent tiered labels and three baselines>
-% we evaluate on bpfix-bench, 235 rejections reproduced under one pinned environment
-% the cases come from stack overflow 86, selftests 85, github commits 46, and issues 18
-% labels are hand-assigned from separate evidence, the classifier playing no part, so they stay independent
-% ground truth is tiered: 235 reproduce, 130 have an instruction-level root-cause index, 9 are adjudicated
-% we compare against three baselines: last-line localizer, message dictionary, and raw-log repair
-
-% ==== RQ1: Localizing the proof break ====
-%%%
-% message<the rejected line diverges from the cause per class, so the last-line baseline misses the hard classes; \sys's accuracy is pending>
-% a useful localizer must point at where the proof broke, which can differ from the rejected instruction
-% the table measures per class how often the root-cause index differs from the rejected index over 130 cases
-% the two differ for 19% source bugs, 33% lowering, 3/3 false positives, 0/5 environment, gap at most 13
-% the last-line baseline localizes source bugs well but misses the hard classes
-% \sys's own localization accuracy against this baseline is pending a fresh replay capture
-
-% ==== RQ2: Attributing the failure class ====
-%%%
-% message<\sys attributes the layer with heuristic signals; the measured comparison to a message baseline is pending>
-% attribution assigns each rejection the layer that must change, scored over 235 cases against the message dictionary
-% \sys reads 73 hand-written signals, and the false-positive verdict rests on only two precision signals, the weakest part
-% the message dictionary cannot recover lowering artifacts or false positives, which share messages with source bugs
-% the measured accuracy and confusion matrix are pending a fresh replay capture
-
-% ==== RQ3: Helping repair ====
-%%%
-% message<a pilot shows the structured diagnostic helps one-shot repair, reported as calibration not a benchmark>
-% to test downstream use we build bpfix-test, 40 repair cases with executable oracles
-% an oracle passes only when the candidate compiles, loads, and runs correctly
-% on an 18-case same-config pilot, raw-log repair passes 5 of 18 and structured-diagnostic repair 18 of 18
-% we report this as a calibration pilot, one model, one run, no trimmed-log or cross-model baseline, full suite future work
-
-% ==== Threats to validity ====
-%%%
-% message<pending captures, small samples, single-adjudicator labels, a tuned pilot, and corpus skew bound the results>
-% the two pending results need every case's replay log, of which only one is in the artifact
-% the hard classes carry few cases, reported with raw counts
-% the adjudicated labels rest on a single adjudicator with agreement not yet measured
-% the repair pilot reuses the tuned case and one model, so it is a calibration signal
-% the distance metric covers only the 130 same-numbering cases, and the source-bug skew bounds the rarer classes
-
-%%%%%%%%%%%%Outline%%%%%%%%%%%%%%%%%%
-
-\section{Evaluation}
+\section{Evaluation Plan}
 \label{sec:evaluation}
 
-We evaluate \sys with three research questions:
+\sys should be evaluated as a benchmark artifact first and as an agent-performance study second. The central question is not whether one optimizer pass is good. The central question is whether the benchmark lets us compare optimization agents fairly under real eBPF feedback.
+
+\subsection{Research Questions}
+
 \begin{itemize}
-  \item \textbf{RQ1 (localization).} Does \sys localize the instruction where the proof breaks more accurately than a baseline that trusts the rejected line?
-  \item \textbf{RQ2 (attribution).} Does \sys assign the correct failure class, and does it beat a message-level baseline on the hard classes?
-  \item \textbf{RQ3 (usefulness).} Does \sys's structured diagnostic help a developer repair the program?
+  \item \textbf{RQ1: Difficulty.} Why is existing eBPF optimization a hard closed-loop decision problem rather than a static pass-selection problem?
+  \item \textbf{RQ2: Benchmark validity.} Does \sys expose verifier, application, workload, and performance failures as separate outcomes?
+  \item \textbf{RQ3: Agent quality.} Do closed-loop agents outperform no-op, static, random, and human-tuned baselines under equal budgets?
+  \item \textbf{RQ4: Feedback.} Does structured feedback improve decisions compared with raw logs or one-shot prompting?
+  \item \textbf{RQ5: Backend dependence.} Do benchmark results depend on kinsn, or can bytecode-only tracks produce meaningful tasks?
+  \item \textbf{RQ6: Integrity.} Do agents preserve benchmark validity when given an explicit performance objective?
 \end{itemize}
 
-\noindent\textbf{Setup.} We evaluate on \emph{bpfix-bench}, a corpus of 235 verifier rejections that each build, load, are rejected, and capture a level-two trace under one pinned environment (kernel 6.15.11 and clang 18.1.3). The cases come from Stack Overflow (86), kernel selftests (85), GitHub commits (46), and GitHub issues (18). Each case's root-cause instruction and taxonomy class are hand-assigned from separate evidence, with the \sys classifier playing no part, so the labels stay independent of the tool they evaluate. Ground truth is tiered: all 235 reproduce as artifacts, 130 carry an instruction-level root-cause index on the replay numbering, and 9 carry adjudicated class labels. We compare \sys against three baselines: a last-line localizer that returns the rejected instruction, a message dictionary that maps the terminal message to a class, and one-shot repair from the raw verifier log.
+\subsection{Metrics}
 
-\noindent\textbf{RQ1: Localizing the proof break.} A useful localizer must point at where the proof broke, which can differ from the rejected instruction. Table~\ref{tab:rejection-cause-gap} measures, per class, how often the labeled root-cause instruction differs from the rejected instruction over the 130 instruction-localizable cases. The two differ for 19\% of source bugs and 33\% of lowering artifacts, for all 3 verifier false positives, and for none of the 5 environment cases, and the gap reaches at most 13 instructions. The last-line baseline therefore localizes source bugs well but misses the hard classes, where the rejected line and the cause carry different classes. \sys's own localization accuracy against this baseline, scored as exact and within-$k$ root-cause hits, is pending a fresh replay capture.
+Table~\ref{tab:metrics} lists the scoreboard metrics. The primary score should not collapse everything into one scalar. Agent papers often want a leaderboard, but eBPF needs component metrics because a candidate can fail at several distinct layers.
 
-\input{tables/sec-5-cause-gap}
+\begin{table*}[t]
+\small
+\centering
+\caption{BPFOptBench reports component metrics plus a strict full-oracle success metric.}
+\label{tab:metrics}
+\begin{tabular}{p{0.20\linewidth}p{0.50\linewidth}p{0.20\linewidth}}
+\hline
+Metric & Definition & Purpose \\
+\hline
+Validity rate & fraction of attempts accepted by the verifier and benchmark policy & measures safety feasibility \\
+Workload success rate & fraction of valid attempts where app lifecycle and workload checks pass & prevents fast-but-broken wins \\
+Performance success rate & fraction of workload-success attempts that beat the threshold/noise gate & measures useful optimization \\
+\texttt{bpfopt\_success\_p} & fraction of tasks accepted, workload-correct, and faster than baseline by at least threshold \(p\) & strict benchmark success \\
+Geomean ratio & post/baseline per-program runtime ratio over retained programs & matches existing corpus methodology \\
+Regret & gap to the best-known valid action under the same task & separates search quality from pass quality \\
+Cost & attempts, wall-clock time, tokens, and benchmark runs & prices brute force \\
+Consistency & success over repeated attempts or repeated task runs, including pass-at-\(k\)-style stability & separates reliable behavior from lucky hits \\
+Integrity failures & attempts that change protected workloads, scoring, run budgets, loaders, or result provenance & measures reward hacking \\
+\hline
+\end{tabular}
+\end{table*}
 
-\noindent\textbf{RQ2: Attributing the failure class.} Attribution assigns each rejection the layer that must change, scored against the hand-assigned label over all 235 cases and compared to the message dictionary. \sys reads 73 hand-written signals over the rich trace to make this call, and the false-positive verdict rests on only two precision signals, so attribution is the weakest part of the system. The message dictionary cannot recover the lowering-artifact and false-positive classes, since they share terminal messages with source bugs. The measured comparison, an accuracy and per-class confusion matrix, is pending a fresh replay capture, because the per-case replay logs the scorer needs are not yet in the artifact.
+For paper-grade performance, the analysis should use the existing corpus methodology: skip programs with zero runs, require at least 100 runs in both phases, compute per-program post/baseline average runtime ratios, and report the per-program geomean plus win/loss/tie counts. Tail-called programs must be attributed through their directly attached callers.
 
-\noindent\textbf{RQ3: Helping repair.} To test whether the structured diagnostic helps downstream, we build \emph{bpfix-test}, a suite of 40 repair cases with executable oracles. An oracle passes a candidate only when it compiles, loads past the verifier, and returns the correct result under a packet or helper run. On an 18-case same-config pilot with one open model, one-shot repair from the raw verifier log passes 5 of 18, and from the \sys structured diagnostic 18 of 18. We report this as a calibration pilot, with one model, one run, and no trimmed-log or cross-model baseline, and we leave the full 40-case suite to future work.
+\subsection{Baselines}
 
-\noindent\textbf{Threats to validity.} The two pending results, \sys's localization accuracy and the attribution confusion matrix, both need the per-instruction replay log of every case, and only one such log is in the artifact, so we will produce them from a fresh kernel-6.15.11 replay capture. The hard classes carry few cases, so we report them with raw counts. The 9 adjudicated labels rest on a single adjudicator, and inter-annotator agreement is not yet measured. The repair pilot reuses the case \sys was tuned on and one model, so it is a calibration signal, and a held-out benchmark is future work. The instruction-distance metric is defined only on the 130 cases that share the replay numbering, and the corpus's skew toward source bugs, 194 of 235, bounds what the rarer classes can show.
+\sys should compare agents against six baselines:
+\begin{itemize}
+  \item \textbf{No-op:} no optimization.
+  \item \textbf{Noop ReJIT:} controls for ReJIT and measurement perturbation.
+  \item \textbf{Static policy:} the default or full pass list.
+  \item \textbf{Random/grid:} blind search under the same attempt budget.
+  \item \textbf{Human tuned:} policy derived from prior analysis, reported as an expert baseline.
+  \item \textbf{Oracle best-known:} best observed valid action per task, used only for regret.
+\end{itemize}
+
+The first agent variants should be simple: a one-shot raw-log prompt, a one-shot structured-feedback prompt, and a closed-loop agent that can update its action after each attempt.
+
+\subsection{Run Blocks}
+
+The release evaluation should have six blocks. First, a historical difficulty study reuses existing artifacts to show noise floors, pass interactions, and applied-count mismatch. Second, an oracle taxonomy classifies failures by verifier rejection, app failure, workload failure, no performance signal, regression, and noise chasing. Third, a live A1--A3 scoreboard compares agents and baselines on frozen tasks. Fourth, a feedback ablation compares raw logs, structured feedback, and closed-loop feedback. Fifth, a backend ablation compares bytecode-only and kinsn-enabled tracks, with source/LLVM adapters included only if they are implemented cleanly. Sixth, an integrity audit reports whether agents attempt to alter workloads, protected paths, run counts, loaders, or result provenance.
+
+\subsection{Success Criteria}
+
+A strong workshop version of this paper does not require agents to solve eBPF optimization. It requires \sys to make the task measurable and falsifiable. If agents beat static and random baselines on heldout tasks, the paper can claim early evidence that closed-loop agents help. If they do not, the paper should claim that \sys exposes why current agents struggle: invalid actions, verifier failures, workload breakage, noise chasing, overfitting to historical reports, or inability to reason about tail-call attribution.
+
+Dataset size should match the claim. With 15--25 audited tasks, \sys is best presented as a vertical-slice testbed. With 30--50 tasks, it can support a workshop benchmark paper. A stronger standalone benchmark claim should target roughly 80--150 expert-audited tasks with a public development split, private or rotating holdout split, and fresh-VM reproducibility checks.
