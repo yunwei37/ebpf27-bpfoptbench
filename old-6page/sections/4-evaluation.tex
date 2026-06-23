@@ -1,0 +1,67 @@
+\section{Evaluation Plan}
+\label{sec:evaluation}
+
+\sys should be evaluated as a benchmark artifact first and as an agent-performance study second. The central question is not whether one optimizer pass is good. The central question is whether the benchmark lets us compare optimization agents fairly under real eBPF feedback.
+
+\subsection{Research Questions}
+
+\begin{itemize}
+  \item \textbf{RQ1: Difficulty.} Why is existing eBPF optimization a hard closed-loop decision problem rather than a static pass-selection problem?
+  \item \textbf{RQ2: Benchmark validity.} Does \sys expose verifier, application, workload, and performance failures as separate outcomes?
+  \item \textbf{RQ3: Agent quality.} Do closed-loop agents outperform no-op, static, random, and human-tuned baselines under equal budgets?
+  \item \textbf{RQ4: Feedback.} Does structured feedback improve decisions compared with raw logs or one-shot prompting?
+  \item \textbf{RQ5: Backend dependence.} Do benchmark results depend on kinsn, or can bytecode-only tracks produce meaningful tasks?
+  \item \textbf{RQ6: Integrity.} Do agents preserve benchmark validity when given an explicit performance objective?
+\end{itemize}
+
+\subsection{Metrics}
+
+Table~\ref{tab:metrics} lists the scoreboard metrics. The primary score should not collapse everything into one scalar. Agent papers often want a leaderboard, but eBPF needs component metrics because a candidate can fail at several distinct layers.
+
+\begin{table*}[t]
+\small
+\centering
+\caption{BPFOptBench reports component metrics plus a strict full-oracle success metric.}
+\label{tab:metrics}
+\begin{tabular}{p{0.20\linewidth}p{0.50\linewidth}p{0.20\linewidth}}
+\hline
+Metric & Definition & Purpose \\
+\hline
+Validity rate & fraction of attempts accepted by the verifier and benchmark policy & measures safety feasibility \\
+Workload success rate & fraction of valid attempts where app lifecycle and workload checks pass & prevents fast-but-broken wins \\
+Performance success rate & fraction of workload-success attempts that beat the threshold/noise gate & measures useful optimization \\
+\texttt{bpfopt\_success\_p} & fraction of tasks accepted, workload-correct, and faster than baseline by at least threshold \(p\) & strict benchmark success \\
+Geomean ratio & post/baseline per-program runtime ratio over retained programs & matches existing corpus methodology \\
+Regret & gap to the best-known valid action under the same task & separates search quality from pass quality \\
+Cost & attempts, wall-clock time, tokens, and benchmark runs & prices brute force \\
+Consistency & success over repeated attempts or repeated task runs, including pass-at-\(k\)-style stability & separates reliable behavior from lucky hits \\
+Integrity failures & attempts that change protected workloads, scoring, run budgets, loaders, or result provenance & measures reward hacking \\
+\hline
+\end{tabular}
+\end{table*}
+
+For paper-grade performance, the analysis should use the existing corpus methodology: skip programs with zero runs, require at least 100 runs in both phases, compute per-program post/baseline average runtime ratios, and report the per-program geomean plus win/loss/tie counts. Tail-called programs must be attributed through their directly attached callers.
+
+\subsection{Baselines}
+
+\sys should compare agents against six baselines:
+\begin{itemize}
+  \item \textbf{No-op:} no optimization.
+  \item \textbf{Noop ReJIT:} controls for ReJIT and measurement perturbation.
+  \item \textbf{Static policy:} the default or full pass list.
+  \item \textbf{Random/grid:} blind search under the same attempt budget.
+  \item \textbf{Human tuned:} policy derived from prior analysis, reported as an expert baseline.
+  \item \textbf{Oracle best-known:} best observed valid action per task, used only for regret.
+\end{itemize}
+
+The first agent variants should be simple: a one-shot raw-log prompt, a one-shot structured-feedback prompt, and a closed-loop agent that can update its action after each attempt.
+
+\subsection{Run Blocks}
+
+The release evaluation should have six blocks. First, a historical difficulty study reuses existing artifacts to show noise floors, pass interactions, and applied-count mismatch. Second, an oracle taxonomy classifies failures by verifier rejection, app failure, workload failure, no performance signal, regression, and noise chasing. Third, a live A1--A3 scoreboard compares agents and baselines on frozen tasks. Fourth, a feedback ablation compares raw logs, structured feedback, and closed-loop feedback. Fifth, a backend ablation compares bytecode-only and kinsn-enabled tracks, with source/LLVM adapters included only if they are implemented cleanly. Sixth, an integrity audit reports whether agents attempt to alter workloads, protected paths, run counts, loaders, or result provenance.
+
+\subsection{Success Criteria}
+
+A strong workshop version of this paper does not require agents to solve eBPF optimization. It requires \sys to make the task measurable and falsifiable. If agents beat static and random baselines on heldout tasks, the paper can claim early evidence that closed-loop agents help. If they do not, the paper should claim that \sys exposes why current agents struggle: invalid actions, verifier failures, workload breakage, noise chasing, overfitting to historical reports, or inability to reason about tail-call attribution.
+
+Dataset size should match the claim. With 15--25 audited tasks, \sys is best presented as a vertical-slice testbed. With 30--50 tasks, it can support a workshop benchmark paper. A stronger standalone benchmark claim should target roughly 80--150 expert-audited tasks with a public development split, private or rotating holdout split, and fresh-VM reproducibility checks.

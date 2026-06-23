@@ -1,0 +1,74 @@
+\section{Optimization Space and Motivation}
+\label{sec:space}
+
+\sys separates the eBPF optimization space into artifact layers and agent action levels. This separation is important because each layer has different inputs, safety constraints, and deployment costs. Calling the space simply ``compiler optimization'' hides the fact that some decisions can be made only after a program has been loaded and verified.
+
+\subsection{Optimization Layers}
+
+Table~\ref{tab:layers} summarizes the layers \sys exposes. The first benchmark track should focus on the layers that can be exercised today with existing application loaders and corpus workloads: pre-load bytecode, live bytecode/ReJIT, and optional kernel/JIT/kinsn transforms. Source and LLVM-backend transforms remain part of the model because they are real eBPF optimization locations, but they should be evaluated only when the adapter can rebuild and reload applications without weakening the oracle.
+
+\begin{table*}[t]
+\small
+\centering
+\caption{BPFOptBench models eBPF optimization as layered artifact transforms plus an agent control plane.}
+\label{tab:layers}
+\begin{tabular}{p{0.13\linewidth}p{0.23\linewidth}p{0.27\linewidth}p{0.15\linewidth}p{0.12\linewidth}}
+\hline
+Layer & What changes & Example actions & Needs source? & First-track role \\
+\hline
+Source & eBPF C/Rust source or generator code & restructure bounds checks, change map layout, alter tail-call chains & yes & future adapter \\
+LLVM backend & IR/MIR/backend policy and codegen & BPF cost model, peepholes, branch analysis, pass placement & yes & future adapter \\
+Pre-load bytecode & BPF object or bytecode before load & byte-ladder combine, static DCE, helper specialization & no & supported track \\
+Live bytecode & already loaded or app-loaded program & pass list, per-program policy, per-site gating, ReJIT retry & no & primary track \\
+Kernel/JIT/kinsn & target JIT capability and native idiom lowering & rotate, conditional select, bulk memory, prefetch, endian fusion & no & optional backend \\
+\hline
+\end{tabular}
+\end{table*}
+
+The layers also differ in what they can know. Source and LLVM transforms can use source types and compiler IR, but they usually cannot see live map values, verifier states after load, or per-site workload profiles. Live bytecode transforms lose source-level structure but gain deployment facts: the actual BPF program, used maps, verifier acceptance, JITed size, and workload behavior. Kinsn extends what bytecode can express to the JIT, but it should be treated as one backend in the benchmark, not as the benchmark's definition.
+
+\subsection{Agent Action Levels}
+
+\sys should not require an agent to synthesize a new optimizer on day one. The first useful benchmark is a constrained policy-selection problem: choose which existing transformations to apply, where, and after seeing what feedback. Table~\ref{tab:actions} lists the action levels.
+
+\begin{table}[t]
+\small
+\centering
+\caption{Action levels for the first BPFOptBench tracks.}
+\label{tab:actions}
+\begin{tabular}{p{0.18\linewidth}p{0.34\linewidth}p{0.34\linewidth}}
+\hline
+Level & Granularity & Example \\
+\hline
+A0 & no-op baseline & keep every program unchanged \\
+A1 & suite-wide pass list & run \texttt{wide\_mem}, \texttt{map\_inline}, and \texttt{dce} \\
+A2 & per-app policy & enable \texttt{map\_inline} for one app and skip another \\
+A3 & per-program policy & optimize only selected program names or IDs \\
+A4 & per-site policy & allow or deny individual rewrite sites \\
+A5 & profile-guided parameter & use real PMU data for \texttt{branch\_flip} \\
+A6 & new rewrite generation & synthesize or patch an optimizer pass \\
+\hline
+\end{tabular}
+\end{table}
+
+The first paper should make A1--A3 the main scoreboard. A4 and A5 are valuable once per-site reports and profile data are stable. A6 is deliberately out of scope for the first benchmark paper: it requires a stronger semantic-equivalence story and risks turning the work into a synthesis paper rather than an agent benchmark.
+
+\subsection{Task Tracks}
+
+The broad opportunity is a BPF agent benchmark for privileged systems engineering. \sys should keep the paper narrower: optimization is the main task, while repository and kernel-in-the-loop tasks appear only when they support optimization. We therefore organize tasks into three tracks:
+
+\begin{itemize}
+  \item \textbf{T1 repo engineering:} non-privileged tasks that repair build, parser, configuration, or artifact-schema issues needed by the optimization harness.
+  \item \textbf{T2 kernel-in-the-loop:} VM-backed tasks that require verifier logs, loader behavior, map/attach lifecycle, daemon protocol, or cross-architecture execution.
+  \item \textbf{T3 performance engineering:} tasks where the candidate must pass correctness gates and improve a paired performance metric.
+\end{itemize}
+
+T3 is the distinctive \sys contribution. T1 lowers cost and expands task count; T2 tests whether an agent can use real kernel feedback; T3 tests whether the agent can optimize without corrupting the benchmark or the workload.
+
+\subsection{Why Static Policies Are Not Enough}
+
+Our existing results already show that static policies are a weak baseline, not a final answer. In a pass-signal audit of completed corpus runs, no standalone pass had a paper-ready measurable improvement. The audit used a noop ReJIT floor and a skip-ReJIT floor to define noise intervals; the suite-level amplitude was 0.0431 in the post/baseline ratio. One run showed a strong app-level low mark for \texttt{map\_inline} on the profiler workload, but the result was not reproduced in the named follow-up because the key low-frequency program fell below the retained-run threshold. That is a benchmark lesson: a single good cell is not a pass claim.
+
+A later corpus analysis was also near flat overall: the post/baseline geomean was 1.0038 across 146 comparable programs. Yet only 63 of the 146 comparable programs had a JIT-byte-size change; the changed-code rows regressed at 1.0323, while unchanged rows improved at 0.9827. This is not clean evidence of either success or failure. It is evidence that residual noise, event mix, and same-size/native-equivalent effects can dominate naive conclusions.
+
+Policy tuning moves in the right direction but remains mixed. A tuned policy improved a shared corpus subset from 0.891x to 0.898x in speedup-style reporting and converted several regressions into wins or non-losses, but it stayed below break-even. On dense microbenchmarks, policy iteration improved a six-benchmark geomean from 0.836x to 1.125x, while a broader 62-benchmark run ended near break-even. These results motivate a benchmark where agents are scored on closed-loop decision quality, not on the existence of an optimizer pass.

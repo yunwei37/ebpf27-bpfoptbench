@@ -1,0 +1,77 @@
+\section{Benchmark Design}
+\label{sec:design}
+
+\sys is a benchmark harness and task format for closed-loop eBPF optimization. It does not define success as producing a syntactically valid patch. It defines success as choosing an allowed optimization action that survives the real kernel and improves a real workload under a reproducible measurement method.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.65cm,
+  box/.style={draw, rounded corners=2pt, align=center, minimum width=2.25cm, minimum height=0.62cm, font=\scriptsize},
+  arrow/.style={-Latex, thick}
+]
+\node[box] (agent) {Agent};
+\node[box, right=of agent] (action) {Optimization\\action};
+\node[box, right=of action] (exec) {Executor\\real app + workload};
+\node[box, below=of exec] (oracle) {Verifier/JIT/\\workload oracle};
+\node[box, below=of action] (feedback) {Structured + raw\\feedback};
+\draw[arrow] (agent) -- (action);
+\draw[arrow] (action) -- (exec);
+\draw[arrow] (exec) -- (oracle);
+\draw[arrow] (oracle) -- (feedback);
+\draw[arrow] (feedback) -- (agent);
+\end{tikzpicture}
+\caption{A \sys task is a closed loop: observe, propose an action, execute the real application path, and score against a composed oracle.}
+\Description{A loop from agent to optimization action to executor to verifier, JIT, and workload oracle, then back through structured and raw feedback.}
+\label{fig:loop}
+\end{figure}
+
+\subsection{Task Model}
+
+A task contains five fields:
+\begin{itemize}
+  \item \textbf{Subject:} an existing eBPF application, workload, architecture, and optional app/program subset.
+  \item \textbf{Action space:} the allowed layer and granularity, such as A1 suite-wide pass selection or A3 per-program policy.
+  \item \textbf{Budget:} the number of attempts, time budget, and whether the agent may use historical results.
+  \item \textbf{Feedback:} raw artifacts and optional normalized summaries made available after each attempt.
+  \item \textbf{Oracle:} verifier acceptance, app lifecycle status, workload correctness, and performance outcome.
+\end{itemize}
+
+The first implementation should instantiate tasks over the existing corpus applications and benchmark entrypoints. The benchmark must preserve the application-level loader boundary: applications load their own BPF programs, and \sys only changes the allowed optimization action. This prevents agents from bypassing the real deployment path with a custom loader.
+
+Each task manifest should also name the base commit, public smoke checks, hidden evaluator checks, protected paths, workload hashes, architecture, timeout, and performance baseline artifact. The agent may edit the workspace, but the evaluator runs outside the agent-controlled tree. This distinction is central: the benchmarked object is the agent's patch or policy, while the grader owns the workload identity, scoring logic, hidden tests, and baseline measurements.
+
+\subsection{Hidden Evaluator}
+
+\sys uses hard gates before assigning any performance score. For ordinary harness tasks, a solution is accepted only if it builds, passes hidden semantic checks, introduces no regression, and respects protected-path and policy-integrity checks. For performance tasks, a candidate receives a performance score only after those gates pass. A faster but semantically wrong candidate scores zero.
+
+The hidden evaluator should check that workload inputs and hashes are unchanged, iteration counts and run budgets are not reduced, failures are not filtered or silenced, app loaders are not replaced, result files are not fabricated, and the candidate still runs in a fresh VM. For selected tasks, differential tests and cross-architecture checks should be used to catch patches that overfit the public workload.
+
+\subsection{Feedback}
+
+\sys should expose both raw and structured feedback. Raw feedback includes verifier logs, workload stdout/stderr, app lifecycle events, pass reports, and raw BPF counter deltas. Structured feedback normalizes this into a compact schema: which programs were eligible, which actions were attempted, where ReJIT or load failed, which workload counters changed, and which retained programs passed the run-count threshold. The benchmark should evaluate both forms because feedback format is itself a research variable.
+
+The framework must not compute paper metrics inside the benchmark runner. The executor records raw counters and raw workload fields. Ratios, geomeans, win/loss counts, confidence intervals, and scoreboards are computed by post-hoc analysis scripts. This keeps the benchmark from hiding interpretation decisions in the measurement path.
+
+\subsection{Oracle}
+
+The oracle is intentionally composed. A candidate succeeds only if:
+\begin{enumerate}
+  \item the kernel accepts the transformed program through the real verifier path;
+  \item the application starts and completes the benchmark lifecycle;
+  \item the workload-specific correctness checks pass;
+  \item the post-hoc performance metric beats the task threshold or the measured noise gate; and
+  \item the action did not use a forbidden shortcut, such as changing the workload, skipping ReJIT failures, or filtering programs from measurement.
+\end{enumerate}
+
+This oracle distinguishes \sys from verifier-repair or code-generation benchmarks. Verifier acceptance is necessary, but it is not the endpoint. The benchmark is about useful optimization, so correctness and measured performance are first-class.
+
+\subsection{Trace and Provenance}
+
+Every agent attempt should produce a replayable trace: task ID, prompt hash, model version, allowed action space, chosen action, benchmark command/config, result path, oracle result, wall-clock time, and cost. This mirrors the hygiene of verifier-repair evaluation, where frozen prompts, split hashes, and toolchain versions make model comparisons auditable.
+
+\subsection{Anti-Gaming Rules}
+
+An optimization agent must not be allowed to win by changing the benchmark. Forbidden actions include reducing workload duration as an optimization, modifying application workload logic, filtering out hard BPF programs, hiding ReJIT failures, replacing upstream app loaders with direct object loaders, or reporting derived summaries from inside framework code. These rules are part of the benchmark definition, not implementation preferences.
+
+This anti-gaming layer should be measured, not only specified. One diagnostic result for \sys is the rate at which agents attempt measurement invalidation: changing a workload, suppressing an error, lowering a run count, hard-coding an output, or modifying protected evaluator files. Such failures are not just invalid submissions; they reveal how agents behave under performance incentives.
