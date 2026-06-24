@@ -62,44 +62,27 @@ counts do not predict speedups, as programs with bytecode changes regress
 \section{Background}
 
 \paragraph{eBPF pipeline.}
-eBPF programs run on performance-critical paths across the modern infrastructure
-stack. Cilium uses eBPF for container networking and load balancing, Falco and
-Tetragon use it for security monitoring, bcc and bpftrace provide tracing and
-observability, and Katran implements high-performance load balancing. Each eBPF
-program passes through a multi-stage pipeline before execution: source code
-(typically C with restricted features) is first compiled by Clang/LLVM to BPF
-bytecode stored in ELF object files, then loaded into the kernel through the
-\texttt{bpf()} syscall with map file descriptors and attach points. The
-in-kernel verifier performs static analysis to ensure memory safety, bounded
-execution, and valid helper usage, after which the architecture-specific JIT
-compiles verified bytecode to native machine code. Finally, the JITed program
-runs on kernel events such as packet arrival, syscall entry, tracepoint hits,
-or profiling samples.
-
-Each stage can affect final performance. The verifier may reject semantically
-correct transformations it cannot prove safe. The JIT may expand or contract
-code depending on architecture-specific patterns. The workload determines which
-code paths are hot, so a transformation that speeds up cold paths may have no
-observable impact.
+eBPF programs run on performance-critical paths for networking~\cite{cilium},
+security monitoring~\cite{tetragon,falco}, and observability~\cite{bcc}. Each
+program passes through a multi-stage pipeline: source code is compiled to BPF
+bytecode, loaded into the kernel via the \texttt{bpf()} syscall, verified for
+safety by the in-kernel verifier~\cite{linuxkernel-bpf-verifier}, JIT-compiled
+to native code, and executed on kernel events. Each stage affects performance
+differently, as the verifier may reject semantically correct transformations,
+the JIT may expand or contract code depending on architecture, and the workload
+determines which paths are hot.
 
 \paragraph{LLM agents for code optimization.}
 Recent work demonstrates that LLM agents can leverage execution feedback for
 iterative code improvement. KernelBench~\cite{kernelbench2025} evaluates LLMs
-on GPU kernel generation, where models generate optimized CUDA kernels given a
-PyTorch reference implementation. The key finding is that frontier models
-achieve less than 20\% success rate out-of-the-box, but iterative refinement
-with execution and profiler feedback improves results from 12\% to 43\%.
-ComPilot~\cite{compilot2025} establishes a closed-loop interaction between LLMs
-and compilers for loop optimization, where the LLM proposes loop
-transformations, the compiler checks legality and measures speedup, and
-feedback guides the next proposal, achieving 2.66$\times$ speedup on PolyBench.
-GSO~\cite{gso2025} benchmarks SWE-agents on 102 real-world software
-optimization tasks where each task provides a performance test as
-specification, revealing that leading agents achieve less than 5\% success rate
-due to challenges in low-level optimization and bottleneck localization. These
-works share a common insight, namely that execution feedback is essential for
-effective code optimization because static analysis and one-shot generation are insufficient
-and agents must iterate based on concrete performance observations.
+on GPU kernel generation and finds that iterative refinement with profiler
+feedback improves success rates from 12\% to 43\%.
+ComPilot~\cite{compilot2025} uses closed-loop compiler interaction for loop
+optimization, achieving 2.66$\times$ speedup on PolyBench.
+GSO~\cite{gso2025} benchmarks agents on real-world software optimization,
+revealing less than 5\% success rate due to localization challenges. These
+works share a common insight: execution feedback is essential because static
+analysis and one-shot generation are insufficient.
 
 \section{Motivation}
 
