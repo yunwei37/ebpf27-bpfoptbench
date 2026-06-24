@@ -40,17 +40,18 @@ paths for networking, observability, and security. Optimizing these programs
 requires cross-layer expertise—verifier semantics, JIT behavior, and workload
 characteristics—and offers no reliable local proxy: the only trustworthy signal
 comes from running the full pipeline. This makes eBPF optimization an iterative
-search problem where each candidate must be executed to evaluate. LLM agents
-are a natural fit for such feedback-driven exploration, yet no benchmark
-evaluates them in this loop. We present \sys, a benchmark for agents that
-optimize existing eBPF programs under real execution feedback. \sys covers 6
+search problem where each candidate must be executed to evaluate, a natural fit
+for LLM agents. We present \sys, an auto-research framework and benchmark for
+eBPF optimization where agents autonomously explore optimization strategies
+under real execution feedback. Agents propose actions, the framework executes
+real applications under real workloads, and structured observations (verifier
+status, JIT output, runtime counters) guide the next iteration. \sys covers 6
 production applications (146 programs), exposes action spaces from suite-wide
-pass selection to per-program policy, and scores candidates with a composed
-oracle including hidden correctness checks and anti-gaming rules. Preliminary
-data shows why the benchmark is needed: the gap between no-op baselines spans
-0.04$\times$ (noise floor), static policies yield a near-flat 1.004$\times$
-geomean, and programs with bytecode changes regress (1.032$\times$) while
-unchanged programs improve (0.983$\times$).
+pass selection to per-program policy, and enforces anti-gaming rules with
+hidden correctness checks. Preliminary data motivates autonomous exploration:
+static policies yield a near-flat 1.004$\times$ geomean, and local rewrite
+counts do not predict speedups—programs with bytecode changes regress
+(1.032$\times$) while unchanged programs improve (0.983$\times$).
 \end{abstract}
 
 \keywords{eBPF, agents, optimization, benchmark, verifier, JIT}
