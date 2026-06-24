@@ -1,4 +1,0 @@
-\section{Conclusion}
-\label{sec:conclusion}
-
-eBPF optimization crosses source code, compiler backend, bytecode, live kernel state, and JIT lowering. That makes it a poor fit for benchmarks that score only compilation or verifier acceptance. \sys frames the problem as closed-loop agentic tuning of existing eBPF programs. The benchmark exposes layered actions, real verifier/JIT/workload feedback, strict anti-gaming rules, and post-hoc performance scoring. Our existing results argue for this framing: static policies are noisy, rewrite counts do not predict speedup, and policy tuning helps only when it is evaluated against the full workload. The next step is to freeze the task set and run a fair scoreboard comparing no-op, static, random, human-tuned, and LLM-agent policies.

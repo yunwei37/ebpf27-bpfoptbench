@@ -8,14 +8,23 @@
 \acmISBN{}
 \acmConference[eBPF '27]{ACM SIGCOMM Workshop on eBPF and Kernel Extensions}{2027}{TBD}
 
-\input{helpers/packages}
-\input{helpers/commands}
+% packages
+\usepackage{xspace}
+\usepackage{xcolor}
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,decorations.pathreplacing}
 
-\setlength{\textfloatsep}{4pt}
-\setlength{\floatsep}{4pt}
-\setlength{\intextsep}{4pt}
+% commands
+\newcommand{\sys}{\textsc{BPFOptBench}\xspace}
+
+\setlength{\textfloatsep}{3pt}
+\setlength{\floatsep}{3pt}
+\setlength{\intextsep}{3pt}
 \setlength{\abovecaptionskip}{2pt}
-\setlength{\belowcaptionskip}{-3pt}
+\setlength{\belowcaptionskip}{-4pt}
 
 \begin{document}
 
@@ -26,20 +35,22 @@
 \renewcommand{\shortauthors}{Anonymous}
 
 \begin{abstract}
-Existing eBPF programs are attractive optimization targets for agents because
-the action space is constrained, feedback is executable, and good decisions
-require systems judgment. They are also difficult to evaluate. A candidate
-rewrite must be accepted by the Linux verifier, preserve the application loader
-and workload behavior, and improve the final JITed code despite noisy runtime
-measurements. We propose \sys, a benchmark for agents that tune existing eBPF
-programs under real verifier, JIT, and workload feedback. \sys defines frozen
-optimization tasks, constrained action spaces, raw and structured feedback,
-hidden evaluator checks, and component metrics for validity, workload success,
-performance, regret, cost, and integrity failures. Historical corpus data
-motivates the benchmark because no-op floors are large, rewrite counts do not
-predict speedups, and tuned human policies improve some cases without solving
-the corpus. These results argue for a benchmark and oracle first, before claiming
-that current agents optimize eBPF well.
+Kernel extensions such as eBPF are widely deployed on performance-critical
+paths for networking, observability, and security. Optimizing these programs
+requires cross-layer expertise—verifier semantics, JIT behavior, and workload
+characteristics—and offers no reliable local proxy: the only trustworthy signal
+comes from running the full pipeline. This makes eBPF optimization an iterative
+search problem where each candidate must be executed to evaluate. LLM agents
+are a natural fit for such feedback-driven exploration, yet no benchmark
+evaluates them in this loop. We present \sys, a benchmark for agents that
+optimize existing eBPF programs under real execution feedback. \sys covers 6
+production applications (146 programs), exposes action spaces from suite-wide
+pass selection to per-program policy, and scores candidates with a composed
+oracle including hidden correctness checks and anti-gaming rules. Preliminary
+data shows why the benchmark is needed: the gap between no-op baselines spans
+0.04$\times$ (noise floor), static policies yield a near-flat 1.004$\times$
+geomean, and programs with bytecode changes regress (1.032$\times$) while
+unchanged programs improve (0.983$\times$).
 \end{abstract}
 
 \keywords{eBPF, agents, optimization, benchmark, verifier, JIT}
@@ -49,69 +60,83 @@ that current agents optimize eBPF well.
 
 \section{Background}
 
-eBPF lets applications extend the Linux kernel with small programs that are
-loaded through application-specific control paths, checked by the in-kernel
-verifier, and lowered by an architecture-specific JIT before running on events
-such as packets, system calls, and profiling samples~\cite{linuxkernel-bpf-verifier,gbadamosi2024ebpf}.
-Prior work shows that eBPF has real optimization and generation headroom. K2
-optimizes BPF bytecode before load~\cite{xu2021synthesizing}, Merlin combines
-LLVM and bytecode transformations~\cite{mao2024merlin}, and LLM-based eBPF
-systems explore code generation and assistance~\cite{zheng2024kgent,simplebpf2025}.
-Agent benchmarks such as SWE-bench, \(\tau\)-bench, and KernelBench show how
-models can be evaluated in executable environments with hidden tests,
-interaction budgets, or performance oracles~\cite{swebench2023,taubench2024,kernelbench2025}.
-\sys combines these threads, but changes the unit of evaluation. The benchmark
-does not ask an agent to write a fresh program or pass a verifier-only repair
-task. It asks whether an agent can choose a useful optimization action for an
-existing eBPF application under the real verifier/JIT/workload loop.
+Prior eBPF optimization work shows real headroom: K2 optimizes bytecode before
+load~\cite{xu2021synthesizing}; Merlin spans LLVM IR and
+bytecode~\cite{mao2024merlin}; Kgent explores LLM-based kernel extension
+generation~\cite{zheng2024kgent}. These answer how to optimize or generate
+eBPF, but not whether an \emph{agent} can tune existing programs when the only
+trustworthy feedback is the real verifier, JIT, and workload.
+
+Agent benchmarks such as SWE-bench and
+\(\tau\)-bench~\cite{swebench2023,taubench2024} evaluate agents with hidden
+tests, but eBPF needs an oracle composing verifier acceptance, application
+behavior, workload semantics, and performance measurement. A verifier-accepted
+candidate can still break the app; a workload-correct candidate may only chase
+noise. \sys fills this gap with a benchmark for closed-loop eBPF optimization.
 
 \section{Motivation}
 
-Our current data supports a benchmark claim rather than an agent-performance claim.
-Table~\ref{tab:motivation} summarizes the strongest evidence. The core lesson
-is that verifier acceptance, rewrite applicability, JIT size, workload success,
-and performance counters do not agree automatically. A benchmark that scores
-only local rewrites or accepted bytecode would reward noise chasing and hide
-regressions.
+\sys models eBPF optimization as layered artifact transforms (Table~\ref{tab:layers}).
+The first track focuses on pre-load bytecode, live bytecode/ReJIT, and optional
+kernel/JIT transforms---layers exercisable with existing application loaders.
+Action levels range from A0 (no-op) through A1 (suite-wide pass list), A2
+(per-app), A3 (per-program), to A5 (profile-guided). The first paper targets
+A1--A3.
 
-\begin{table}[H]
+\begin{table}[t]
 \footnotesize
 \centering
 \setlength{\tabcolsep}{2pt}
-\caption{Existing data motivates \sys as a benchmark. Ratios are post/base unless noted.}
-\label{tab:motivation}
-\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}>{\raggedright\arraybackslash}p{0.35\linewidth}}
+\caption{Optimization layers modeled by \sys.}
+\label{tab:layers}
+\begin{tabular}{p{0.17\linewidth}p{0.43\linewidth}p{0.30\linewidth}}
 \hline
-Evidence & Result & Benchmark implication \\
+Layer & Example actions & First-track role \\
 \hline
-No-op floors & no-op ReJIT 0.9019 and skip-ReJIT 0.8587 over 147 programs & agents need noise gates and no-op controls \\
-Pass audit & no completed standalone pass has a paper-ready improvement & rewrite count is not enough evidence \\
-Full corpus & 146 programs, geomean 1.0038, 81/65 W/L & headline performance can be nearly flat \\
-Applied split & changed-code rows 1.0323, unchanged rows 0.9827 & event mix and phase effects can dominate \\
-Human policy & shared subset improves 0.891x to 0.898x in speedup-style reporting & choosing not to optimize is a real policy decision \\
+Source & restructure bounds, change map layout & future adapter \\
+LLVM backend & BPF cost model, peepholes & future adapter \\
+Pre-load bytecode & byte-ladder combine, static DCE & supported \\
+Live bytecode & pass list, per-program policy, ReJIT & primary \\
+Kernel/JIT & rotate, cond-select, bulk-mem & optional backend \\
 \hline
 \end{tabular}
 \end{table}
 
-\section{Design}
+Why is a benchmark needed? Table~\ref{tab:motivation} summarizes evidence from
+our corpus. The core lesson: verifier acceptance, rewrite count, JIT size, and
+performance counters do not agree automatically. A benchmark scoring only local
+rewrites would reward noise chasing and hide regressions.
 
-\sys adds a benchmark layer above an existing eBPF runner. The runner executes
-real applications and records raw counters. \sys defines the task, permitted
-actions, feedback surface, hidden evaluator, and scoring protocol. Each task
-names a subject application, workload, architecture, baseline artifact, action
-space, attempt budget, protected files, and public and hidden checks. The first
-track focuses on actions that the current infrastructure can exercise, including
-suite-wide pass lists, per-app policies, and per-program policies over bytecode
-and live ReJIT actions. The kinsn-backed JIT capabilities are an optional
-backend, not the definition of the benchmark. Source-level and LLVM-backend
-actions can be added later as adapters that rebuild applications and feed the
-same oracle.
+\begin{table}[t]
+\footnotesize
+\centering
+\setlength{\tabcolsep}{2pt}
+\caption{Existing data motivates \sys as a benchmark.}
+\label{tab:motivation}
+\begin{tabular}{p{0.17\linewidth}p{0.40\linewidth}p{0.35\linewidth}}
+\hline
+Evidence & Result & Implication \\
+\hline
+No-op floors & noop ReJIT 0.902, skip-ReJIT 0.859 & agents need noise gates \\
+Pass audit & no standalone pass paper-ready & rewrite count $\neq$ evidence \\
+Full corpus & 146 progs, geomean 1.004, 81/65 W/L & headline can be flat \\
+Applied split & changed-code 1.032, unchanged 0.983 & phase effects dominate \\
+Policy tuning & shared subset 0.891$\to$0.898 & not optimizing is real \\
+\hline
+\end{tabular}
+\end{table}
 
-\begin{figure}[H]
+\section{Benchmark Design}
+
+\sys defines success as choosing an optimization action that survives the real
+kernel and improves a real workload. Figure~\ref{fig:loop} shows the closed
+loop: observe, propose action, execute real app, score.
+
+\begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-  node distance=0.42cm,
-  box/.style={draw, rounded corners=2pt, align=center, minimum width=1.55cm, minimum height=0.46cm, font=\scriptsize},
+  node distance=0.38cm,
+  box/.style={draw, rounded corners=2pt, align=center, minimum width=1.4cm, minimum height=0.42cm, font=\scriptsize},
   arrow/.style={-Latex, thick}
 ]
 \node[box] (agent) {Agent};
@@ -125,63 +150,51 @@ same oracle.
 \draw[arrow] (oracle) -- (feedback);
 \draw[arrow] (feedback) -- (agent);
 \end{tikzpicture}
-\caption{\sys evaluates a closed loop in which an agent observes, chooses an
-allowed optimization action, executes the real app path, and scores with a
-composed oracle.}
-\Description{A loop from an agent to an optimization action, real application and workload execution, verifier, JIT, and workload oracle, and raw plus structured feedback returning to the agent.}
+\caption{\sys closed loop: observe, propose action, execute real app, score.}
+\Description{Loop from agent to action to executor to oracle to feedback.}
 \label{fig:loop}
 \end{figure}
 
-The oracle has hard gates before any performance score is assigned. A candidate
-must be accepted by the real verifier path, preserve the application lifecycle,
-pass workload-specific correctness checks, clear the task's performance
-threshold or measured noise gate, and avoid forbidden shortcuts such as changing
-the workload, lowering the run budget, replacing app loaders, filtering ReJIT
-failures, or fabricating result files. The executor records raw artifacts only.
-Ratios, geomeans, win/loss counts, confidence intervals, and scoreboards are
-computed by post-hoc analysis scripts so interpretation never hides inside the
-measurement path.
+\noindent\textbf{Task model.} A task specifies: (1) \emph{subject}---eBPF app,
+workload, architecture; (2) \emph{action space}---allowed layer/granularity;
+(3) \emph{budget}---attempts, time; (4) \emph{feedback}---raw artifacts and
+summaries; (5) \emph{oracle}---verifier acceptance, app lifecycle, workload
+correctness, performance outcome.
+
+\noindent\textbf{Oracle.} A candidate succeeds only if: the kernel accepts it
+through the real verifier; the app completes the benchmark lifecycle; workload
+checks pass; performance beats the noise gate; and no forbidden shortcut was
+used.
+
+\noindent\textbf{Anti-gaming rules.} Forbidden: reducing workload duration,
+filtering hard programs, hiding ReJIT failures, replacing app loaders. The rate
+of invalidation attempts is itself a diagnostic metric.
 
 \section{Preliminary Evaluation}
 
-We structure the evaluation as a benchmark-artifact study first and an
-agent-performance study second. The latest v3 raw run already shows that the
-execution substrate can complete the six supported macro apps
-(\texttt{bcc/set}, \texttt{tracee/monitor}, \texttt{tetragon/observer},
-\texttt{katran}, \texttt{cilium/agent}, and
-\texttt{otelcol-ebpf-profiler/profiling}) through the native-loader path and
-record per-app raw payloads. Because that run enabled no optimization passes,
-it is substrate evidence rather than optimization evidence.
+We structure evaluation as a benchmark-artifact study first, agent-performance
+study second. \textbf{RQ1}: Why is eBPF optimization a hard closed-loop
+problem, not static pass selection? \textbf{RQ2}: Does \sys expose verifier,
+app, workload, and performance failures separately? \textbf{RQ3}: Do
+closed-loop agents outperform no-op, static, random, and human-tuned baselines?
 
-\begin{table}[H]
-\footnotesize
-\centering
-\setlength{\tabcolsep}{2pt}
-\caption{Preliminary evaluation plan and the claim each block can support.}
-\label{tab:eval}
-\begin{tabular}{>{\raggedright\arraybackslash}p{0.22\linewidth}>{\raggedright\arraybackslash}p{0.40\linewidth}>{\raggedright\arraybackslash}p{0.30\linewidth}}
-\hline
-Block & Method & Claim supported \\
-\hline
-Difficulty study & reuse no-op floors, pass audit, corpus split, and policy comparison & eBPF optimization needs a composed oracle \\
-Task/evaluator audit & freeze 20--50 tasks with protected workloads and hidden checks & \sys is a reproducible benchmark artifact \\
-Offline agent study & ask agents to judge signals, choose next experiments, and detect invalid actions & feedback effects can be measured \\
-Small live scoreboard & compare no-op, static, random/grid, human policy, and agents on A1--A3 tasks & policies can be compared under equal budgets \\
-\hline
-\end{tabular}
-\end{table}
+\noindent\textbf{Metrics.} Validity rate, workload success rate, performance
+success rate, per-program geomean, regret to best-known action, cost (attempts,
+time, tokens), integrity failure rate.
 
-The first paper should report component metrics rather than one opaque score,
-including validity rate, workload success rate, performance success rate,
-\texttt{bpfopt\_success\_p}, regret to the best-known valid action, attempts,
-wall-clock cost, token cost, and integrity failure rate. With 20--50 audited
-tasks, \sys can support a workshop benchmark claim. A stronger standalone
-benchmark would require a larger public development split, a private or
-rotating holdout split, and fresh-VM replay checks. The immediate goal is
-therefore calibrated. We should freeze tasks and the hidden evaluator, then run
-a small scoreboard that compares no-op, static, random, human-tuned, and
-LLM-agent policies without claiming that current agents already solve eBPF
-optimization.
+\noindent\textbf{Baselines.} No-op, noop-ReJIT (measurement perturbation
+control), static policy, random/grid search, human-tuned policy, oracle
+best-known (regret only).
+
+\noindent\textbf{Current status.} The v3 substrate completes 6 production apps
+(\texttt{bcc}, \texttt{tracee}, \texttt{tetragon}, \texttt{katran},
+\texttt{cilium}, \texttt{otelcol-ebpf-profiler}) through native-loader paths
+and records per-app raw payloads. Preliminary data (Table~\ref{tab:motivation})
+already shows that static policies are noisy and rewrite counts do not predict
+speedup. A workshop version need not show agents solve eBPF optimization---it
+must make the task measurable and falsifiable. Next step: freeze 20--50 tasks
+and run a scoreboard comparing no-op, static, random, human-tuned, and
+LLM-agent policies.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}
