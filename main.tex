@@ -60,30 +60,24 @@ speedup) on x86 and 1.21$\times$ (21\% speedup) on ARM64 micro benchmarks.
 \section{Background}
 
 \paragraph{eBPF pipeline.}
-eBPF programs run on performance-critical paths for networking~\cite{cilium},
-security monitoring~\cite{tetragon,falco}, and observability~\cite{bcc}. Each
-program passes through a multi-stage pipeline: source code is compiled to BPF
-bytecode, loaded into the kernel via the \texttt{bpf()} syscall, verified for
-safety by the in-kernel verifier~\cite{linuxkernel-bpf-verifier}, JIT-compiled
-to native code, and executed on kernel events. Each stage affects performance
-differently, as the verifier may reject semantically correct transformations,
-the JIT may expand or contract code depending on architecture, and the workload
-determines which paths are hot.
+eBPF is a kernel extension mechanism that runs programs on
+performance-critical paths for networking~\cite{cilium},
+security~\cite{tetragon,falco}, and observability~\cite{bcc}. Developers
+write eBPF programs in C or Rust, compile them with Clang/LLVM to BPF
+bytecode, and load them into the kernel where a verifier checks safety
+before JIT compilation to native code. Each stage offers optimization
+opportunities: source-level restructuring, LLVM backend tuning, and
+kernel JIT lowering with architecture-specific instructions.
 
 \paragraph{LLM agents and auto-research frameworks.}
-LLM agents are autonomous systems that use large language models to observe
-environments, reason about goals, and take actions iteratively. Unlike
-one-shot generation, agents maintain context across iterations, learn from
-feedback, and adapt strategies based on outcomes. Auto-research frameworks
-provide infrastructure for agents to conduct iterative experiments
-autonomously, handling environment setup, action execution, and structured
-feedback. Recent work applies this paradigm to code optimization:
-KernelBench~\cite{kernelbench2025} shows that LLMs can apply algorithmic
-optimizations beyond compiler patterns, ComPilot~\cite{compilot2025} finds
-that LLMs interpret \emph{why} a transformation failed, and
-GSO~\cite{gso2025} demonstrates cross-layer reasoning across abstraction
-hierarchies. These results suggest capabilities relevant to eBPF: understanding
-semantic feedback, transferring patterns across domains, and adapting to context.
+LLM agents use large language models to observe, reason, and act iteratively,
+learning from feedback across iterations. Auto-research frameworks provide
+infrastructure for agents to conduct experiments autonomously. Recent work
+applies this to code optimization: KernelBench~\cite{kernelbench2025} shows
+LLMs apply optimizations beyond compiler patterns, ComPilot~\cite{compilot2025}
+finds LLMs interpret \emph{why} transformations fail, and GSO~\cite{gso2025}
+demonstrates cross-layer reasoning. These capabilities are relevant to eBPF:
+understanding verifier feedback, transferring patterns, and adapting to context.
 
 \section{Motivation}
 
