@@ -37,10 +37,9 @@
 
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical
-paths. Optimizing these programs requires cross-layer expertise spanning
-verifier semantics, JIT behavior, and workload characteristics. No local
-metric predicts performance, so the only trustworthy signal comes from
-execution. This makes eBPF optimization an iterative search problem where
+paths. Optimizing these programs is hard: the search space spans multiple
+layers, static analysis cannot predict performance, and context determines
+whether a transformation helps or hurts. This makes eBPF optimization an iterative search problem where
 LLM agents can leverage semantic feedback, cross-domain knowledge, and
 adaptive strategies to outperform traditional methods. We present \sys, an
 auto-research framework providing safe iteration with bounded action spaces,
@@ -78,54 +77,27 @@ and GPU kernel generation~\cite{kernelbench2025,gso2025}.
 
 \section{Motivation}
 
-\paragraph{Why is eBPF optimization hard?}
-Optimizing eBPF programs requires cross-layer expertise spanning verifier
-semantics, JIT behavior across architectures, and workload characteristics.
-Unlike traditional compiler optimization where cost models provide reasonable
-proxies, eBPF optimization offers no reliable local signal. Bytecode size does
-not predict JIT output because a transformation that reduces bytecode
-instructions may expand under JIT due to register allocation or
-architecture-specific lowering. JIT size does not predict runtime because
-smaller JITed code is not always faster, as inlining a frequently-called helper
-increases code size but eliminates call overhead. Microbenchmark gains may not
-transfer because an optimization showing 10\% speedup in isolated testing may
-have negligible impact on real workloads where the optimized code path is cold.
-Architecture dependence further complicates matters because a transformation
-profitable on x86-64 may regress on arm64 due to different instruction costs or
-branch prediction behavior. The only trustworthy signal comes from running the
-full pipeline and measuring actual performance counters.
+\paragraph{eBPF optimization is hard.}
+The search space is large: eBPF programs span multiple optimization layers
+from source restructuring through LLVM backend tuning to kernel JIT lowering,
+each with architecture-specific choices. Static analysis cannot predict
+performance because bytecode size does not predict JIT output, JIT size does
+not predict runtime, and microbenchmark gains may not transfer to real
+workloads. Context determines effects: a transformation profitable on x86
+may regress on arm64, and the same pass that speeds up one program slows down
+another. Table~\ref{tab:motivation} shows concrete evidence: the bulk\_memory
+pass achieves 1.9$\times$ speedup on \texttt{siphash\_rotate64\_mixer} but
+causes 14\% regression on \texttt{bpftrace\_comm\_key\_fnv}. The only
+trustworthy signal comes from execution.
 
 \paragraph{Existing eBPF optimization.}
 K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF
-bytecode, synthesizing equivalent sequences that may be shorter or faster. K2
-demonstrates significant optimization headroom but operates as a one-shot
-optimizer without iterative feedback. Merlin~\cite{mao2024merlin} combines LLVM
-IR and bytecode transformations, recognizing that eBPF optimization naturally
-spans multiple layers, but requires source access and operates at compile time.
-The LLVM BPF backend includes static peephole optimizations that combine memory
-operations, eliminate redundant moves, and select efficient instruction
-encodings, but these are fixed heuristics applied uniformly. These approaches
-use fixed search strategies or heuristics, and none evaluates whether an agent
-can learn effective optimization strategies from execution feedback, adapting
-its policy based on observed outcomes.
-
-\paragraph{Gap.}
-eBPF optimization presents similar challenges to those where LLM agents excel:
-verifier rejections carry semantic information about why a transformation
-failed, optimization patterns learned on one application may transfer to
-another, and effective strategies vary by workload characteristics. Yet
-existing agent benchmarks do not cover eBPF's unique pipeline, and existing
-eBPF optimizers use fixed algorithms rather than adaptive exploration.
-
-\paragraph{Evidence from our corpus.}
-Table~\ref{tab:motivation} shows that the same optimization pass produces
-opposite effects across different programs. The kinsn bulk\_memory pass speeds
-up \texttt{siphash\_rotate64\_mixer} by 1.9$\times$ but slows down
-\texttt{bpftrace\_comm\_key\_fnv} by 14\%. At the app level, the same kinsn
-policy improves BCC by 4\% but regresses OTEL by 7\%. The effect even varies
-by architecture: bulk\_memory helps x86 Cilium (0.78$\times$) but hurts ARM64
-Cilium (1.07$\times$). These results motivate per-program adaptive policy
-selection rather than one-size-fits-all static optimization.
+bytecode but operates as a one-shot optimizer without iterative feedback.
+Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations
+but requires source access and operates at compile time. The LLVM BPF backend
+includes static peephole optimizations but these are fixed heuristics applied
+uniformly. These approaches use fixed search strategies, and none adapts
+policy based on execution feedback.
 
 \begin{table}[t]
 \footnotesize
@@ -155,16 +127,22 @@ ARM64 & bulk\_memory & 1.07$\times$ (regress) \\
 
 \section{Framework Design}
 
-\sys is an auto-research framework enabling agents to iteratively explore eBPF
-optimization strategies under real execution feedback. The framework addresses
-four design goals: safe iteration through crash isolation, bounded action
-spaces to make search tractable, structured semantic feedback beyond pass/fail
-signals, and reproducible execution on real workloads.
+\paragraph{Goals.}
+\sys enables agents to iteratively explore eBPF optimization strategies under
+real execution feedback. The framework addresses four goals: (1) crash
+isolation so failed optimizations do not corrupt the host, (2) bounded action
+spaces to make search tractable, (3) structured semantic feedback beyond
+pass/fail signals, and (4) reproducible execution on real workloads.
 
 \paragraph{Architecture.}
-Figure~\ref{fig:arch} shows the \sys closed loop. LLM agents select
-optimization strategies across three layers (source, LLVM, kernel JIT), the
-framework deploys to Docker/KVM/AWS, and structured feedback guides iteration.
+Figure~\ref{fig:arch} shows the closed loop. LLM agents select optimization
+strategies across three layers: source restructuring, LLVM backend tuning, and
+kernel JIT lowering. The framework packages applications into Docker images,
+deploys to KVM or AWS for isolated execution, and returns structured feedback
+including verifier logs, JIT output size, and per-program runtime counters. The
+first benchmark track focuses on live bytecode optimization: pass list
+selection, per-program policies, and ReJIT after programs are loaded,
+leveraging runtime information such as loaded maps and verifier states.
 
 \begin{figure}[t]
 \centering
@@ -201,108 +179,52 @@ framework deploys to Docker/KVM/AWS, and structured feedback guides iteration.
 \draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
 \draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
 \end{tikzpicture}
-\caption{\sys closed loop: LLM agents select optimization strategies across
-source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and
-feedback guides the next iteration.}
+\caption{\sys closed loop: agents select strategies across source/LLVM/JIT
+layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
 \Description{Three-layer architecture: agent, framework, execution.}
 \label{fig:arch}
 \end{figure}
 
-\paragraph{Optimization layers.}
-\sys models eBPF optimization as a hierarchy of artifact layers
-(Table~\ref{tab:layers}). The source layer allows restructuring bounds checks
-or changing map layouts but requires source access. The LLVM backend layer
-enables cost model tuning and peephole patterns but operates at compile time.
-The pre-load bytecode layer supports transformations like byte-ladder combining
-and static DCE without source access. The live bytecode layer, which is the
-primary focus of the first benchmark track, enables pass list selection,
-per-program policies, and ReJIT after programs are loaded, leveraging runtime
-information such as loaded maps, verifier states, and workload profiles.
-Finally, the kernel/JIT layer provides optional backend capabilities like
-rotate, conditional select, and bulk memory operations.
-
-\begin{table}[t]
-\footnotesize
-\centering
-\setlength{\tabcolsep}{2pt}
-\caption{Optimization layers modeled by \sys. The first benchmark track focuses
-on bytecode and live ReJIT layers.}
-\label{tab:layers}
-\begin{tabular}{p{0.15\linewidth}p{0.45\linewidth}p{0.30\linewidth}}
-\hline
-Layer & Example actions & First-track role \\
-\hline
-Source & restructure bounds checks, change map layout, alter tail-call chains & future adapter \\
-LLVM backend & BPF cost model tuning, peephole patterns, pass ordering & future adapter \\
-Pre-load bytecode & byte-ladder combine, static DCE, helper specialization & supported \\
-Live bytecode & pass list selection, per-program policy, ReJIT & primary focus \\
-Kernel/JIT & rotate, conditional select, bulk memory, prefetch & optional backend \\
-\hline
-\end{tabular}
-\end{table}
-
 \paragraph{Action space.}
-Within each layer, \sys defines action granularity levels ranging from coarse
-to fine. At level A0 (no-op), all programs are left unchanged as a baseline. At
-level A1 (suite-wide), a fixed pass list is applied to all programs, such as
-running \texttt{wide\_mem}, \texttt{map\_inline}, and \texttt{dce} everywhere.
-At level A2 (per-app), different policies apply to different applications, for
-example enabling \texttt{map\_inline} for Cilium but skipping it for Katran. At
-level A3 (per-program), fine-grained control targets individual programs, such
-as optimizing only high-run-count programs within an application. Higher levels
-A4 (per-site) and A5 (profile-guided) control individual transformation sites
-and use PMU data for decisions like branch layout. The first benchmark paper
-targets A1--A3 because higher levels require stable per-site reporting and
-profile infrastructure.
+\sys defines action granularity from coarse to fine. A0 (no-op) leaves all
+programs unchanged as baseline. A1 (suite-wide) applies a fixed pass list to
+all programs. A2 (per-app) applies different policies to different
+applications. A3 (per-program) targets individual programs, such as optimizing
+only high-run-count programs. Higher levels A4 (per-site) and A5
+(profile-guided) control individual transformation sites and use PMU data. The
+first benchmark track targets A1--A3; higher levels require stable per-site
+reporting infrastructure.
 
 \section{Benchmark Design}
 
-The benchmark layer defines how agent actions are evaluated. The design
-addresses three goals: production coverage through 6 real applications with
-146 programs and 42 micro benchmarks, anti-gaming enforcement through hidden
-correctness checks, and fair comparison through noise-floor baselines.
+\paragraph{Goals.}
+The benchmark evaluates agent actions with three goals: (1) production coverage
+through 6 real applications with 146 programs and 42 micro benchmarks, (2)
+anti-gaming enforcement through hidden correctness checks, and (3) fair
+comparison through noise-floor baselines.
 
-\paragraph{Task model.}
-A \sys task specifies five components. The \emph{subject} defines the eBPF
-application, workload, target architecture, and optional program subset, using
-production applications with representative workloads rather than synthetic
-benchmarks to ensure results transfer to real deployments. The \emph{action
-space} constrains the allowed optimization layer and granularity, making tasks
-tractable while still exercising meaningful decisions. The \emph{budget} limits
-maximum attempts, wall-clock time, and token budget, pricing exploration cost
-and preventing brute-force search from dominating. The \emph{feedback} returned
-after each attempt includes structured observations such as verifier
-accept/reject with log excerpts, JIT output size, per-program
-\texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta}, and workload-level
-metrics, with raw artifacts also available. The \emph{oracle} defines the
-composed evaluation criteria described below.
+\paragraph{Workloads.}
+The benchmark covers Cilium (CNI networking), Tetragon (security observability),
+Tracee (runtime security), Katran (load balancing), BCC (tracing tools), and
+OTEL (continuous profiling). Each task specifies a subject (application,
+workload, architecture), action space (optimization layer and granularity),
+budget (attempts, wall-clock time, tokens), and feedback (verifier logs, JIT
+size, per-program \texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta}).
+Production applications with representative workloads ensure results transfer
+to real deployments.
 
-\paragraph{Composed oracle.}
-A candidate succeeds only if it passes all oracle gates. The verifier must
-accept the transformed program, as rejection means the optimization is invalid
-regardless of potential performance. The application must complete its
-lifecycle, starting up, attaching all programs, completing the benchmark
-workload, and shutting down cleanly without crashes or hangs. Application-specific semantic checks must pass, such as correct packet forwarding for
-Cilium, security event detection for Tetragon, and functional load balancing
-for Katran. The post-optimization performance must beat the baseline by at
-least the noise gate (empirically 0.04$\times$ based on no-op floor
-measurements), and the action must not use forbidden shortcuts.
-
-\paragraph{Anti-gaming rules.}
-Forbidden actions that would invalidate the benchmark include reducing workload
-duration or iteration count, modifying workload inputs or expected outputs,
-filtering programs from measurement or ReJIT, hiding or silencing ReJIT
-failures, replacing application loaders with direct object loading, and
-fabricating or modifying result files. The rate at which agents attempt
-measurement invalidation is itself a diagnostic metric.
-
-\paragraph{Metrics.}
-\sys reports validity rate (fraction passing verifier and policy checks),
-workload success rate (fraction completing workload correctly), performance
-success rate (fraction meeting the performance threshold), geomean ratio
-(per-program geometric mean of post/baseline runtime), regret (gap to the
-best-known valid action), cost (attempts, wall-clock time, tokens consumed),
-and integrity failure rate (attempts violating anti-gaming rules).
+\paragraph{Evaluation and metrics.}
+A candidate succeeds only if it passes all evaluation gates: verifier
+acceptance, application lifecycle completion (startup, attach, workload,
+shutdown), application-specific semantic checks (packet forwarding for Cilium,
+event detection for Tetragon, load balancing for Katran), and performance
+improvement beyond the noise gate (0.04$\times$ based on no-op floor).
+Forbidden actions include reducing workload duration, modifying inputs/outputs,
+filtering programs from measurement, hiding ReJIT failures, replacing loaders,
+and fabricating results. \sys reports validity rate, workload success rate,
+performance success rate, geomean ratio (per-program geometric mean of
+post/baseline), regret (gap to best-known action), cost (attempts, time,
+tokens), and integrity failure rate.
 
 \section{Preliminary Evaluation}
 
