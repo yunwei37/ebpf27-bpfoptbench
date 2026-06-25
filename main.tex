@@ -70,14 +70,13 @@ opportunities: source-level restructuring, LLVM backend tuning, and
 kernel JIT lowering with architecture-specific instructions.
 
 \paragraph{LLM agents and auto-research frameworks.}
-LLM agents use large language models to observe, reason, and act iteratively,
-learning from feedback across iterations. Auto-research frameworks provide
-infrastructure for agents to conduct experiments autonomously. Recent work
-applies this to code optimization: KernelBench~\cite{kernelbench2025} shows
-LLMs apply optimizations beyond compiler patterns, ComPilot~\cite{compilot2025}
-finds LLMs interpret \emph{why} transformations fail, and GSO~\cite{gso2025}
-demonstrates cross-layer reasoning. These capabilities are relevant to eBPF:
-understanding verifier feedback, transferring patterns, and adapting to context.
+LLM agents use LLM models reasoning
+about what to do and taking actions via tool
+calls~\cite{swebench2023,llmagentsesurvey2025}. Auto-research frameworks enable
+agents to conduct experiments autonomously~\cite{gso2025}. Recent work applies
+this to code optimization: PIE~\cite{pie2024} optimizes C++ algorithms,
+ComPilot~\cite{compilot2025} tunes loops via compiler feedback,
+KernelBench~\cite{kernelbench2025} optimizes GPU kernels.
 
 \section{Motivation}
 
