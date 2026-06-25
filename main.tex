@@ -54,8 +54,6 @@ by 14\%. The tuned kinsn policy achieves 0.94$\times$ BPF runtime (6\%
 speedup) on x86 and 1.21$\times$ (21\% speedup) on ARM64 micro benchmarks.
 \end{abstract}
 
-\keywords{eBPF, agents, optimization, benchmark, verifier, JIT}
-
 \maketitle
 \pagestyle{plain}
 
@@ -72,21 +70,20 @@ differently, as the verifier may reject semantically correct transformations,
 the JIT may expand or contract code depending on architecture, and the workload
 determines which paths are hot.
 
-\paragraph{LLM agents for code optimization.}
-Recent work demonstrates that LLM agents outperform traditional optimization
-methods such as compilers, autotuners, and superoptimizers in domains
-requiring cross-layer reasoning and adaptive strategies.
+\paragraph{LLM agents and auto-research frameworks.}
+LLM agents are autonomous systems that use large language models to observe
+environments, reason about goals, and take actions iteratively. Unlike
+one-shot generation, agents maintain context across iterations, learn from
+feedback, and adapt strategies based on outcomes. Auto-research frameworks
+provide infrastructure for agents to conduct iterative experiments
+autonomously, handling environment setup, action execution, and structured
+feedback. Recent work applies this paradigm to code optimization:
 KernelBench~\cite{kernelbench2025} shows that LLMs can apply algorithmic
-optimizations beyond compiler patterns, such as replacing dense-diagonal
-matrix multiplication with row scaling.
-ComPilot~\cite{compilot2025} finds that LLMs interpret \emph{why} a
-transformation failed (e.g., which dependency was violated), enabling
-in-context learning from errors rather than blind retry.
+optimizations beyond compiler patterns, ComPilot~\cite{compilot2025} finds
+that LLMs interpret \emph{why} a transformation failed, and
 GSO~\cite{gso2025} demonstrates cross-layer reasoning across abstraction
-hierarchies, though agents still struggle with low-level languages.
-These results suggest three capabilities relevant to eBPF: understanding
-semantic feedback from the verifier, transferring optimization patterns
-across application domains, and adapting strategies to workload context.
+hierarchies. These results suggest capabilities relevant to eBPF: understanding
+semantic feedback, transferring patterns across domains, and adapting to context.
 
 \section{Motivation}
 
@@ -173,39 +170,51 @@ four design goals: safe iteration through crash isolation, bounded action
 spaces to make search tractable, structured semantic feedback beyond pass/fail
 signals, and reproducible execution on real workloads.
 
-\paragraph{Closed-loop architecture.}
-The \sys closed loop (Figure~\ref{fig:loop}) iterates through four phases. The
-agent observes the current state and prior feedback, then proposes an
-optimization action within the allowed action space. The framework executes the action on
-real applications under real workloads, the oracle evaluates correctness and
-performance, and structured feedback is returned to guide the next iteration.
-This architecture enables agents to learn from concrete outcomes rather than
-relying on static heuristics. For example, an agent can observe that a
-particular pass causes regressions on networking workloads but improvements
-on tracing workloads, then adapt its policy accordingly.
+\paragraph{Architecture.}
+Figure~\ref{fig:arch} shows the \sys closed loop. LLM agents select
+optimization strategies across three layers (source, LLVM, kernel JIT), the
+framework deploys to Docker/KVM/AWS, and structured feedback guides iteration.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-  node distance=0.5cm,
-  box/.style={draw, rounded corners=2pt, align=center, minimum width=1.6cm, minimum height=0.5cm, font=\scriptsize},
+  bigbox/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
+  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
+  label/.style={font=\normalsize\bfseries},
+  arrowlabel/.style={font=\small},
   arrow/.style={-Latex, thick}
 ]
-\node[box] (agent) {Agent};
-\node[box, right=of agent] (action) {Optimization\\Action};
-\node[box, right=of action] (exec) {Real Apps\\+ Workloads};
-\node[box, below=of exec] (oracle) {Composed\\Oracle};
-\node[box, below=of action] (feedback) {Structured\\Feedback};
-\draw[arrow] (agent) -- node[above, font=\tiny] {propose} (action);
-\draw[arrow] (action) -- node[above, font=\tiny] {execute} (exec);
-\draw[arrow] (exec) -- node[right, font=\tiny] {evaluate} (oracle);
-\draw[arrow] (oracle) -- node[below, font=\tiny] {score} (feedback);
-\draw[arrow] (feedback) -- node[left, font=\tiny] {observe} (agent);
+% Agent layer
+\node[bigbox, fill=blue!10] (agent) at (0,0) {};
+\node[label, right=0.2cm of agent.east, anchor=west] {LLM Agent};
+\node[smallbox] at ([xshift=-1.5cm]agent.center) (claude) {Claude};
+\node[smallbox] at (agent.center) (codex) {Codex};
+\node[smallbox] at ([xshift=1.5cm]agent.center) (otheragent) {$\cdots$};
+
+% Framework layer
+\node[bigbox, fill=orange!10] (framework) at (0,-1.6) {};
+\node[label, right=0.2cm of framework.east, anchor=west] {Framework};
+\node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
+\node[smallbox] at (framework.center) (llvm) {LLVM};
+\node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
+
+% Execution layer
+\node[bigbox, fill=green!10] (exec) at (0,-3.2) {};
+\node[label, right=0.2cm of exec.east, anchor=west] {Execution};
+\node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
+\node[smallbox] at (exec.center) (kvm) {KVM};
+\node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
+
+% Arrows
+\draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (framework.north);
+\draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
+\draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
 \end{tikzpicture}
-\caption{\sys closed loop: agents propose actions, the framework executes on
-real applications, and structured feedback guides iteration.}
-\Description{Closed loop from agent through action, execution, oracle, feedback.}
-\label{fig:loop}
+\caption{\sys closed loop: LLM agents select optimization strategies across
+source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and
+feedback guides the next iteration.}
+\Description{Three-layer architecture: agent, framework, execution.}
+\label{fig:arch}
 \end{figure}
 
 \paragraph{Optimization layers.}
