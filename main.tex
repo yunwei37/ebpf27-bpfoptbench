@@ -73,16 +73,20 @@ the JIT may expand or contract code depending on architecture, and the workload
 determines which paths are hot.
 
 \paragraph{LLM agents for code optimization.}
-Recent work demonstrates that LLM agents can leverage execution feedback for
-iterative code improvement. KernelBench~\cite{kernelbench2025} evaluates LLMs
-on GPU kernel generation and finds that iterative refinement with profiler
-feedback improves success rates from 12\% to 43\%.
-ComPilot~\cite{compilot2025} uses closed-loop compiler interaction for loop
-optimization, achieving 2.66$\times$ speedup on PolyBench.
-GSO~\cite{gso2025} benchmarks agents on real-world software optimization,
-revealing less than 5\% success rate due to localization challenges. These
-works share a common insight: execution feedback is essential because static
-analysis and one-shot generation are insufficient.
+Recent work demonstrates that LLM agents outperform traditional optimization
+methods (compilers, autotuners, superoptimizers) in domains requiring
+cross-layer reasoning and adaptive strategies.
+KernelBench~\cite{kernelbench2025} shows that LLMs can apply algorithmic
+optimizations beyond compiler patterns, such as replacing dense-diagonal
+matrix multiplication with row scaling.
+ComPilot~\cite{compilot2025} finds that LLMs interpret \emph{why} a
+transformation failed (e.g., which dependency was violated), enabling
+in-context learning from errors rather than blind retry.
+GSO~\cite{gso2025} demonstrates cross-layer reasoning across abstraction
+hierarchies, though agents still struggle with low-level languages.
+These results suggest three capabilities relevant to eBPF: understanding
+semantic feedback from the verifier, transferring optimization patterns
+across application domains, and adapting strategies to workload context.
 
 \section{Motivation}
 
@@ -119,11 +123,12 @@ can learn effective optimization strategies from execution feedback, adapting
 its policy based on observed outcomes.
 
 \paragraph{Gap.}
-Existing agent benchmarks demonstrate the value of execution feedback for code
-optimization but do not cover eBPF's unique characteristics, including the
-verifier as a hard correctness gate, the JIT as an additional transformation
-layer, and production applications with complex workloads. Existing eBPF optimizers use
-fixed algorithms rather than adaptive exploration.
+eBPF optimization presents similar challenges to those where LLM agents excel:
+verifier rejections carry semantic information about why a transformation
+failed, optimization patterns learned on one application may transfer to
+another, and effective strategies vary by workload characteristics. Yet
+existing agent benchmarks do not cover eBPF's unique pipeline, and existing
+eBPF optimizers use fixed algorithms rather than adaptive exploration.
 
 \paragraph{Evidence from our corpus.}
 Table~\ref{tab:motivation} summarizes preliminary data from our corpus of 6
