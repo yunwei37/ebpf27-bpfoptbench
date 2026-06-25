@@ -36,23 +36,20 @@
 
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical
-paths for networking, observability, and security. Optimizing these programs
-requires cross-layer expertise (verifier semantics, JIT behavior, and workload
-characteristics) and offers no reliable local proxy, so the only trustworthy
-signal comes from running the full pipeline. This makes eBPF optimization an
-iterative search problem where LLM agents can leverage semantic feedback,
-cross-domain knowledge, and adaptive strategies to outperform traditional
-methods. We present \sys, an auto-research framework and benchmark for
-eBPF optimization where agents autonomously explore optimization strategies
-under real execution feedback. Agents propose actions, the framework executes
-real applications under real workloads, and structured observations (verifier
-status, JIT output, runtime counters) guide the next iteration. \sys covers 6
-production applications (146 programs), exposes action spaces from suite-wide
-pass selection to per-program policy, and enforces anti-gaming rules with
-hidden correctness checks. Preliminary data motivates autonomous exploration
-because static policies yield a near-flat 1.004$\times$ geomean, and local rewrite
-counts do not predict speedups, as programs with bytecode changes regress
-(1.032$\times$) while unchanged programs improve (0.983$\times$).
+paths. Optimizing these programs requires cross-layer expertise spanning
+verifier semantics, JIT behavior, and workload characteristics. No local
+metric predicts performance, so the only trustworthy signal comes from
+execution. This makes eBPF optimization an iterative search problem where
+LLM agents can leverage semantic feedback, cross-domain knowledge, and
+adaptive strategies to outperform traditional methods. We present \sys, an
+auto-research framework providing safe iteration with bounded action spaces,
+crash isolation, and structured feedback from verifier logs, JIT output, and
+runtime counters. We instantiate \sys as a benchmark covering 6 production
+applications with 146 programs and 35 micro benchmarks, and enforce
+anti-gaming rules with hidden correctness checks. Preliminary data motivates autonomous exploration
+because static policies yield a near-flat 1.004$\times$ geomean, and local
+rewrite counts do not predict speedups, as programs with bytecode changes
+regress (1.032$\times$) while unchanged programs improve (0.983$\times$).
 \end{abstract}
 
 \keywords{eBPF, agents, optimization, benchmark, verifier, JIT}
@@ -75,8 +72,8 @@ determines which paths are hot.
 
 \paragraph{LLM agents for code optimization.}
 Recent work demonstrates that LLM agents outperform traditional optimization
-methods (compilers, autotuners, superoptimizers) in domains requiring
-cross-layer reasoning and adaptive strategies.
+methods such as compilers, autotuners, and superoptimizers in domains
+requiring cross-layer reasoning and adaptive strategies.
 KernelBench~\cite{kernelbench2025} shows that LLMs can apply algorithmic
 optimizations beyond compiler patterns, such as replacing dense-diagonal
 matrix multiplication with row scaling.
@@ -109,7 +106,6 @@ branch prediction behavior. The only trustworthy signal comes from running the
 full pipeline and measuring actual performance counters.
 
 \paragraph{Existing eBPF optimization.}
-Prior work has explored eBPF optimization through different approaches.
 K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF
 bytecode, synthesizing equivalent sequences that may be shorter or faster. K2
 demonstrates significant optimization headroom but operates as a one-shot
@@ -162,9 +158,10 @@ Policy tuning & shared subset improved 0.891$\times$ $\to$ 0.898$\times$ & human
 \section{Framework Design}
 
 \sys is an auto-research framework enabling agents to iteratively explore eBPF
-optimization strategies under real execution feedback. The design goal is to
-support autonomous agent exploration while providing the infrastructure for
-reproducible benchmarking.
+optimization strategies under real execution feedback. The framework addresses
+four design goals: safe iteration through crash isolation, bounded action
+spaces to make search tractable, structured semantic feedback beyond pass/fail
+signals, and reproducible execution on real workloads.
 
 \paragraph{Closed-loop architecture.}
 Figure~\ref{fig:loop} shows the \sys closed loop. In each iteration, the agent
@@ -250,8 +247,10 @@ profile infrastructure.
 
 \section{Benchmark Design}
 
-The benchmark layer defines how agent actions are evaluated. The design goal is
-fair, reproducible evaluation with composed correctness and performance checks.
+The benchmark layer defines how agent actions are evaluated. The design
+addresses three goals: production coverage through 6 real applications with
+146 programs and 35 micro benchmarks, anti-gaming enforcement through hidden
+correctness checks, and fair comparison through noise-floor baselines.
 
 \paragraph{Task model.}
 A \sys task specifies five components. The \emph{subject} defines the eBPF
