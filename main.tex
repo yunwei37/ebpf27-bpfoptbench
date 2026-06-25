@@ -15,6 +15,7 @@
 \setlength{\emergencystretch}{3em}
 \usepackage{array}
 \usepackage{tikz}
+\usepackage{graphicx}
 \usetikzlibrary{arrows.meta,positioning,decorations.pathreplacing}
 
 % commands
@@ -45,11 +46,12 @@ adaptive strategies to outperform traditional methods. We present \sys, an
 auto-research framework providing safe iteration with bounded action spaces,
 crash isolation, and structured feedback from verifier logs, JIT output, and
 runtime counters. We instantiate \sys as a benchmark covering 6 production
-applications with 146 programs and 29 micro benchmarks, and enforce
-anti-gaming rules with hidden correctness checks. Preliminary data motivates autonomous exploration
-because static policies yield a near-flat 1.004$\times$ geomean, and local
-rewrite counts do not predict speedups, as programs with bytecode changes
-regress (1.032$\times$) while unchanged programs improve (0.983$\times$).
+applications with 146 programs and 42 micro benchmarks, and enforce
+anti-gaming rules with hidden correctness checks. Agent-guided exploration
+across 2,874 sessions discovered that per-program tuning is essential, as
+the same pass speeds up some programs by 1.9$\times$ while slowing others
+by 14\%. The tuned kinsn policy achieves 0.94$\times$ BPF runtime (6\%
+speedup) on x86 and 1.21$\times$ (21\% speedup) on ARM64 micro benchmarks.
 \end{abstract}
 
 \keywords{eBPF, agents, optimization, benchmark, verifier, JIT}
@@ -128,28 +130,37 @@ existing agent benchmarks do not cover eBPF's unique pipeline, and existing
 eBPF optimizers use fixed algorithms rather than adaptive exploration.
 
 \paragraph{Evidence from our corpus.}
-Table~\ref{tab:motivation} summarizes our preliminary corpus data. Static policies yield near-flat results, and local
-rewrite counts do not predict speedups. The most striking finding is the
-applied split: programs where bytecode transformations were applied show worse
-performance (1.032$\times$ slowdown) than programs left unchanged
-(0.983$\times$ speedup). This applied-split result suggests that the decision of whether to optimize
-is as important as how to optimize, motivating an auto-research framework where
-agents autonomously explore strategies under real feedback.
+Table~\ref{tab:motivation} shows that the same optimization pass produces
+opposite effects across different programs. The kinsn bulk\_memory pass speeds
+up \texttt{siphash\_rotate64\_mixer} by 1.9$\times$ but slows down
+\texttt{bpftrace\_comm\_key\_fnv} by 14\%. At the app level, the same kinsn
+policy improves BCC by 4\% but regresses OTEL by 7\%. The effect even varies
+by architecture: bulk\_memory helps x86 Cilium (0.78$\times$) but hurts ARM64
+Cilium (1.07$\times$). These results motivate per-program adaptive policy
+selection rather than one-size-fits-all static optimization.
 
 \begin{table}[t]
 \footnotesize
 \centering
-\setlength{\tabcolsep}{2pt}
-\caption{Corpus data motivates autonomous exploration over static policies.}
+\setlength{\tabcolsep}{3pt}
+\caption{Same kinsn pass produces opposite effects across benchmarks and apps,
+motivating per-program policy selection.}
 \label{tab:motivation}
-\begin{tabular}{p{0.15\linewidth}p{0.42\linewidth}p{0.35\linewidth}}
+\begin{tabular}{llr}
 \hline
-Evidence & Result & Implication \\
+Target & kinsn Pass & Speedup \\
 \hline
-No-op floors & noop ReJIT 0.902$\times$, skip-ReJIT 0.859$\times$ & noise floor is 0.04$\times$; any claimed improvement must exceed this \\
-Static policy & 146 programs, geomean 1.004$\times$, 81 wins / 65 losses & static all-apply policy is near-flat overall \\
-Applied split & changed-code programs 1.032$\times$, unchanged 0.983$\times$ & programs where optimization applied actually regress; phase effects dominate \\
-Policy tuning & shared subset improved 0.891$\times$ $\to$ 0.898$\times$ & human policy iteration helps but does not solve the corpus \\
+\multicolumn{3}{l}{\textit{Micro benchmarks (ARM64)}} \\
+\texttt{siphash\_rotate64\_mixer} & bulk\_memory & 1.90$\times$ \\
+\texttt{bpftrace\_comm\_key\_fnv} & bulk\_memory & 0.86$\times$ \\
+\hline
+\multicolumn{3}{l}{\textit{Production apps (x86, same policy)}} \\
+BCC (8 tools) & kinsn all & 0.96$\times$ (4\% faster) \\
+OTEL profiler & kinsn all & 1.07$\times$ (7\% slower) \\
+\hline
+\multicolumn{3}{l}{\textit{Cross-architecture (Cilium, bulk\_memory)}} \\
+x86 & bulk\_memory & 0.78$\times$ (best) \\
+ARM64 & bulk\_memory & 1.07$\times$ (regress) \\
 \hline
 \end{tabular}
 \end{table}
@@ -248,7 +259,7 @@ profile infrastructure.
 
 The benchmark layer defines how agent actions are evaluated. The design
 addresses three goals: production coverage through 6 real applications with
-146 programs and 29 micro benchmarks, anti-gaming enforcement through hidden
+146 programs and 42 micro benchmarks, anti-gaming enforcement through hidden
 correctness checks, and fair comparison through noise-floor baselines.
 
 \paragraph{Task model.}
@@ -295,39 +306,57 @@ and integrity failure rate (attempts violating anti-gaming rules).
 
 \section{Preliminary Evaluation}
 
-The evaluation addresses three research questions. RQ1 asks whether eBPF
-optimization is a hard closed-loop problem requiring iterative exploration or
-whether static policies suffice. RQ2 asks whether \sys correctly exposes
-verifier, application, workload, and performance failures as separate outcomes.
-RQ3 asks whether closed-loop agents outperform no-op, static, random, and
-human-tuned baselines under equal budgets.
+\paragraph{Exploration scale.}
+We conducted 2,874 benchmark sessions exploring 25 unique pass configurations
+across 6 production applications. The exploration was driven by LLM agents
+(Claude Code and Codex), with 1,651 commits from automated agents. Figure~\ref{fig:timeline}
+shows the exploration timeline, with key discoveries annotated.
 
-\paragraph{Baselines.}
-The baselines include no-op (no optimization applied), noop-ReJIT (ReJIT with
-identity transformation to control for measurement perturbation), static policy
-(applying all available passes uniformly), random search (random pass selection
-under the same attempt budget), human-tuned (policy derived from manual corpus
-analysis), and oracle best-known (best observed valid action per task, used as
-regret reference only).
+\paragraph{Kinsn optimization results.}
+The agent-guided exploration converged on kinsn (kernel instruction lowering)
+as the most effective optimization family, applying 305,449 transformation
+sites. On x86, the tuned kinsn policy achieves 0.94$\times$ BPF runtime
+(6\% speedup) across 6 apps. On ARM64 micro benchmarks, kinsn achieves
+1.21$\times$ speedup (21\% faster) with 24 wins out of 29 benchmarks.
+Table~\ref{tab:results} summarizes the per-app breakdown.
 
-\paragraph{Current status.}
-The \sys framework infrastructure is operational, completing 6 production
-applications through native-loader paths: \texttt{bcc/set} (tracing tools),
-\texttt{tracee/monitor} (security runtime), \texttt{tetragon/observer}
-(security observability), \texttt{katran} (load balancer),
-\texttt{cilium/agent} (CNI networking), and \texttt{otelcol-ebpf-profiler}
-(continuous profiling). Each run records per-program raw counters, verifier
-logs, JIT output sizes, and workload metrics. Table~\ref{tab:motivation}
-already demonstrates RQ1 because the near-flat 1.004$\times$ geomean and the
-counterintuitive applied-split result show that eBPF optimization requires
-adaptive exploration, not fixed heuristics.
+\begin{table}[t]
+\footnotesize
+\centering
+\setlength{\tabcolsep}{3pt}
+\caption{Per-app kinsn optimization results (x86 corpus, tuned policy).}
+\label{tab:results}
+\begin{tabular}{lrrr}
+\hline
+App & BPF Geomean & Wins/Losses & Sites Applied \\
+\hline
+tracee & 0.93$\times$ & 35/5 & 14,833 \\
+tetragon & 0.83$\times$ & 5/0 & 2,891 \\
+cilium & 0.85$\times$ & 2/0 & 4,086 \\
+bcc & 0.96$\times$ & 11/4 & 77 \\
+katran & 0.94$\times$ & 1/0 & 90 \\
+otel & 1.07$\times$ & 0/1 & 1,475 \\
+\hline
+\textbf{Overall} & \textbf{0.94$\times$} & 54/10 & 23,452 \\
+\hline
+\end{tabular}
+\end{table}
 
-\paragraph{Next steps.}
-The workshop paper will freeze 20--50 audited tasks with protected workloads
-and hidden checks, implement baseline agents including one-shot prompting and
-iterative refinement variants, run a scoreboard comparing agent policies under
-equal budgets, and analyze failure modes to identify where current agents
-struggle.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{timeline.pdf}
+\caption{Exploration timeline showing 2,874 sessions across x86 and ARM64.
+Key discoveries are annotated: noise floor calibration (May 8), LEA debugging
+(Jun 2), and kinsn breakthrough (Jun 3). Bar height indicates session density.}
+\Description{Timeline of exploration sessions from May to June 2026.}
+\label{fig:timeline}
+\end{figure}
+
+\paragraph{Key findings.}
+The exploration revealed that per-program tuning is essential: the same kinsn
+pass that speeds up tracee by 7\% causes OTEL to regress by 7\%. Static
+policies cannot capture this variance. The framework enabled rapid iteration,
+with 515 sessions in 4 days during the intensive exploration period.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}
