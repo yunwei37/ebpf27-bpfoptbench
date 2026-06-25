@@ -39,9 +39,10 @@ Kernel extensions such as eBPF are widely deployed on performance-critical
 paths for networking, observability, and security. Optimizing these programs
 requires cross-layer expertise (verifier semantics, JIT behavior, and workload
 characteristics) and offers no reliable local proxy, so the only trustworthy
-signal comes from running the full pipeline. This makes eBPF optimization an iterative
-search problem where each candidate must be executed to evaluate, a natural fit
-for LLM agents. We present \sys, an auto-research framework and benchmark for
+signal comes from running the full pipeline. This makes eBPF optimization an
+iterative search problem where LLM agents can leverage semantic feedback,
+cross-domain knowledge, and adaptive strategies to outperform traditional
+methods. We present \sys, an auto-research framework and benchmark for
 eBPF optimization where agents autonomously explore optimization strategies
 under real execution feedback. Agents propose actions, the framework executes
 real applications under real workloads, and structured observations (verifier
