@@ -128,12 +128,11 @@ existing agent benchmarks do not cover eBPF's unique pipeline, and existing
 eBPF optimizers use fixed algorithms rather than adaptive exploration.
 
 \paragraph{Evidence from our corpus.}
-Table~\ref{tab:motivation} summarizes preliminary data from our corpus of 6
-production applications. Static policies yield near-flat results, and local
+Table~\ref{tab:motivation} summarizes our preliminary corpus data. Static policies yield near-flat results, and local
 rewrite counts do not predict speedups. The most striking finding is the
 applied split: programs where bytecode transformations were applied show worse
 performance (1.032$\times$ slowdown) than programs left unchanged
-(0.983$\times$ speedup). This suggests that the decision of whether to optimize
+(0.983$\times$ speedup). This applied-split result suggests that the decision of whether to optimize
 is as important as how to optimize, motivating an auto-research framework where
 agents autonomously explore strategies under real feedback.
 
@@ -164,15 +163,15 @@ spaces to make search tractable, structured semantic feedback beyond pass/fail
 signals, and reproducible execution on real workloads.
 
 \paragraph{Closed-loop architecture.}
-Figure~\ref{fig:loop} shows the \sys closed loop. In each iteration, the agent
-observes the current state and prior feedback, then proposes an optimization
-action within the allowed action space. The framework executes the action on
+The \sys closed loop (Figure~\ref{fig:loop}) iterates through four phases. The
+agent observes the current state and prior feedback, then proposes an
+optimization action within the allowed action space. The framework executes the action on
 real applications under real workloads, the oracle evaluates correctness and
 performance, and structured feedback is returned to guide the next iteration.
 This architecture enables agents to learn from concrete outcomes rather than
-relying on static heuristics, so an agent can observe that a particular pass
-causes regressions on networking workloads but improvements on tracing
-workloads and adapt its policy accordingly.
+relying on static heuristics. For example, an agent can observe that a
+particular pass causes regressions on networking workloads but improvements
+on tracing workloads, then adapt its policy accordingly.
 
 \begin{figure}[t]
 \centering
