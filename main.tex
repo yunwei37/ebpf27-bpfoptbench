@@ -175,7 +175,7 @@ The framework supports live bytecode optimization leveraging runtime information
 \paragraph{Iteration.}
 Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters.
 % 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
-The framework persists all session history for cross-iteration learning, and enforces integrity constraints so that agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
+The framework persists all session history for cross-iteration learning, and enforces integrity constraints via OS-level policy~\cite{actplane2026}: agents interact only through \texttt{make} targets and cannot modify benchmark code, reduce workload duration, or fabricate results.
 % 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束使得 agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
 
 \section{Benchmark Design}
@@ -205,8 +205,8 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
-Using Claude Code and Codex, LLM agents autonomously drove 2,640 benchmark sessions across 6 production applications over 2 months (May--Jun 2026), consuming 445M tokens (Claude) + 531M tokens (Codex) with no human guidance for algorithm design (humans only built the benchmark framework).
-% 使用 Claude Code 和 Codex，LLM agents 在 2 个月内（2026年5-6月）自主驱动了 2,640 个 benchmark session，涵盖 6 个生产应用，消耗 445M tokens (Claude) + 531M tokens (Codex)，算法设计全程无人工指导（人类只构建了 benchmark 框架）。
+Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design and triggering exploration, while optimization algorithm design was fully autonomous.
+% 使用 Claude Code 和 Codex 在 x86 KVM (8 vCPUs, 64GB) 和 ARM64 AWS t4g.small 上，LLM agents 在 7 周内（2026年5月6日-6月26日）自主驱动了 2,640 个 benchmark session，消耗 445M + 531M tokens，平均每 session 7h（最长 19h），人工参与仅限于框架设计和触发探索，算法设计全程无人工指导。
 Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
 % 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
