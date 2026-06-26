@@ -41,10 +41,11 @@ paths. Optimizing these programs is hard: the search space spans multiple
 layers, static analysis cannot predict performance, and context determines
 whether a transformation helps or hurts. This makes eBPF optimization an iterative search problem where
 LLM agents can leverage semantic feedback, cross-domain knowledge, and
-adaptive strategies to outperform traditional methods. We present \sys, an
-auto-research framework providing safe iteration with bounded action spaces,
-crash isolation, and structured feedback from verifier logs, JIT output, and
-runtime counters. We instantiate \sys as a benchmark covering 6 production
+adaptive strategies to outperform traditional methods. We present \sys, 
+the first eBPF optimization auto-research framework and benchmark for AI agents,
+providing safe iteration with bounded action spaces, crash isolation, and
+structured feedback from verifier logs, JIT output, and runtime counters. 
+We instantiate \sys as a benchmark covering 6 production
 applications with 146 programs and 42 micro benchmarks, and enforce
 anti-gaming rules with hidden correctness checks. Agent-guided exploration
 across 2,874 sessions discovered that per-program tuning is essential, as
