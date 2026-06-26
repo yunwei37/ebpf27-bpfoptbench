@@ -13,12 +13,12 @@ import matplotlib.dates as mdates
 import numpy as np
 
 plt.rcParams.update({
-    'font.size': 13,
+    'font.size': 15,
     'font.family': 'serif',
-    'axes.labelsize': 15,
-    'xtick.labelsize': 12,
-    'ytick.labelsize': 12,
-    'legend.fontsize': 10,
+    'axes.labelsize': 17,
+    'xtick.labelsize': 14,
+    'ytick.labelsize': 14,
+    'legend.fontsize': 12,
     'figure.figsize': (9, 3),
     'axes.grid': True,
     'grid.alpha': 0.3,
@@ -256,14 +256,13 @@ def main():
     
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
     ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO, interval=2))
-    plt.gcf().autofmt_xdate()
     
     # ax.set_xlabel('Date (2026)')
     ax.set_ylabel('Improvement (%)')
     ax.set_ylim(-40, 40)
     ax.set_xlim(datetime(2026, 5, 1), datetime(2026, 6, 30))
     
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=5, fontsize=11)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=5, fontsize=13)
     plt.tight_layout()
     
     out_dir = Path('/home/yunwei37/workspace/bpf-benchmark/docs/ebpf27-bpfoptbench')

@@ -29,7 +29,7 @@ x_base = 0
 for i, (app, val) in enumerate(source_data):
     label = app if app not in used_apps else ''
     ax.bar(x_base + i * width, val, width * 0.9, color=app_colors[app], label=label)
-    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=14, fontweight='bold')
+    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=10, fontweight='bold')
     used_apps.add(app)
 
 # LLVM layer (position 1.2)
@@ -37,7 +37,7 @@ x_base = 1.2
 for i, (app, val) in enumerate(llvm_data):
     label = app if app not in used_apps else ''
     ax.bar(x_base + i * width, val, width * 0.9, color=app_colors[app], label=label)
-    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=14, fontweight='bold')
+    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=10, fontweight='bold')
     used_apps.add(app)
 
 # Kernel JIT layer (position 2.4)
@@ -45,7 +45,7 @@ x_base = 2.4
 for i, (app, val) in enumerate(kernel_data):
     label = app if app not in used_apps else ''
     ax.bar(x_base + i * width, val, width * 0.9, color=app_colors[app], label=label)
-    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=14, fontweight='bold')
+    ax.text(x_base + i * width, val + 1.5, f'{val}%', ha='center', fontsize=10, fontweight='bold')
     used_apps.add(app)
 
 ax.set_ylabel('Improvement (%)', fontsize=14)
