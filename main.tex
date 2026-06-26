@@ -46,7 +46,7 @@ We present \sys, the first eBPF optimization auto-research framework, enabling s
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
-Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%, and the tuned kinsn policy achieves 6\% speedup on x86 and 21\% on ARM64 micro benchmarks.
+Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%. Optimizations at each compilation layer show the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT, while micro benchmarks achieve 6\% speedup on x86 and 21\% on ARM64.
 % 在 2,874 个 session 的 agent 引导探索中发现，逐程序调优是必要的，因为同一个 pass 让某些程序加速 1.9 倍却让另一些减速 14%，而调优后的 kinsn 策略在 x86 上达到 6% 加速、在 ARM64 微基准上达到 21%。
 \end{abstract}
 
@@ -201,15 +201,7 @@ Runs use x86 KVM and arm64 AWS to expose architecture-dependent effects.
 \section{Preliminary Evaluation}
 
 \paragraph{Multi-layer optimization results.}
-Agent exploration discovered effective optimizations across all three compilation layers.
-% agent 探索在所有三个编译层都发现了有效的优化。
-At the source layer, rewriting eBPF C code improved workload throughput on networking and security apps.
-% 在源码层，重写 eBPF C 代码提升了网络和安全应用的工作负载吞吐量。
-At the LLVM/bytecode layer, the map\_inline pass speculatively inlines map lookups with constant values.
-% 在 LLVM/字节码层，map\_inline pass 将 map 查找推测性内联为常量值。
-At the kernel JIT layer, the kinsn pass emits native operations via Kops.
-% 在内核 JIT 层，kinsn pass 通过 Kops 生成原生操作。
-Figure~\ref{fig:layers} shows the best per-app results at each layer.
+Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM/bytecode, and kernel JIT layers, with the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT.
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
