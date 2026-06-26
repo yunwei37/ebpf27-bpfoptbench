@@ -124,11 +124,14 @@ The framework addresses four goals: (1) crash isolation so failed optimizations 
 % 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
 
 \paragraph{Architecture.}
-Figure~\ref{fig:arch} shows the closed loop: LLM agents select optimization strategies across three layers (source restructuring, LLVM backend tuning, and kernel JIT lowering), the framework packages applications into Docker images and deploys to KVM or AWS for isolated execution, and structured feedback flows back to guide the next iteration.
-% 图 1 展示了闭环：LLM agents 在三层（源码重构、LLVM 后端调优和内核 JIT 降级）中选择优化策略，框架将应用打包成 Docker 镜像并部署到 KVM 或 AWS 进行隔离执行，结构化反馈返回以指导下一次迭代。
-% 框架将应用打包成 Docker 镜像，部署到 KVM 或 AWS 进行隔离执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
-The first benchmark track focuses on live bytecode optimization: pass list selection, per-program policies, and ReJIT after programs are loaded, leveraging runtime information such as loaded maps and verifier states.
-% 第一个 benchmark track 专注于运行时字节码优化：pass 列表选择、逐程序策略、以及程序加载后的 ReJIT，利用已加载 map 和 verifier 状态等运行时信息。
+Figure~\ref{fig:arch} shows the three-layer system architecture.
+% 图 1 展示了三层系统架构。
+Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and structured feedback guides the next iteration.
+% agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，结构化反馈指导下一次迭代。
+Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering.
+% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级。
+The framework supports live bytecode optimization leveraging runtime information such as loaded maps and counters.
+% 框架支持利用已加载 map 和计数器等运行时信息的运行时字节码优化。
 
 \begin{figure}[t]
 \centering
@@ -173,9 +176,9 @@ The first benchmark track focuses on live bytecode optimization: pass list selec
 
 \paragraph{Iteration.}
 Each iteration follows a closed loop: agents submit an optimization configuration (pass list and per-program policies), the framework executes it under budget constraints (iteration count, wall-clock time, tokens), and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters or workload metrics.
-% 每次迭代遵循闭环：agents 提交优化配置（pass 列表和逐程序策略），框架在预算约束（迭代次数、挂钟时间、token）下执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
-The framework persists all session history for cross-iteration learning, and enforces integrity constraints to prevent reward hacking—agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
-% 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束以防止奖励作弊——agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
+% 每次迭代遵循闭环：agents 提交优化配置（pass 列表和逐程序策略），框架在预算约束（迭代次数、挂钟时间、token）下执行，并返回包括 verifier 日志、JIT 输出大小、每程序运行时计数器或工作负载指标的结构化反馈。
+The framework persists all session history for cross-iteration learning, and enforces integrity constraints to prevent reward hacking: agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
+% 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束以防止奖励作弊：agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
 
 \section{Benchmark Design}
 
