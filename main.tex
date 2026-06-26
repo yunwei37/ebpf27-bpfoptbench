@@ -36,22 +36,20 @@
 \renewcommand{\shortauthors}{Anonymous}
 
 \begin{abstract}
-Kernel extensions such as eBPF are widely deployed on performance-critical
-paths. Optimizing these programs is hard: the search space spans multiple
-layers, static analysis cannot predict performance, and context determines
-whether a transformation helps or hurts. This makes eBPF optimization an iterative search problem where
-LLM agents can leverage semantic feedback, cross-domain knowledge, and
-adaptive strategies to outperform traditional methods. We present \sys, 
-the first eBPF optimization auto-research framework and benchmark for AI agents,
-providing safe iteration with bounded action spaces, crash isolation, and
-structured feedback from verifier logs, JIT output, and runtime counters. 
-We instantiate \sys as a benchmark covering 6 production
-applications with 146 programs and 42 micro benchmarks, and enforce
-anti-gaming rules with hidden correctness checks. Agent-guided exploration
-across 2,874 sessions discovered that per-program tuning is essential, as
-the same pass speeds up some programs by 1.9$\times$ while slowing others
-by 14\%. The tuned kinsn policy achieves 0.94$\times$ BPF runtime (6\%
-speedup) on x86 and 1.21$\times$ (21\% speedup) on ARM64 micro benchmarks.
+Kernel extensions such as eBPF are widely deployed on performance-critical paths.
+% eBPF 等内核扩展被广泛部署在性能关键路径上。
+Optimizing these programs is hard: the search space spans multiple layers, static analysis cannot predict performance, and context determines whether a transformation helps or hurts.
+% 优化这些程序很难：搜索空间跨越多层，静态分析无法预测性能，而且上下文决定了某个变换是有益还是有害。
+This makes eBPF optimization an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
+% 这使得 eBPF 优化成为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
+We present \sys, the first eBPF optimization auto-research framework, providing safe iteration with bounded action spaces, crash isolation, and structured feedback from verifier logs, JIT output, and runtime counters.
+% 我们提出 \sys，第一个面向 AI agents 的 eBPF 优化自动研究框架，提供有界动作空间的安全迭代、崩溃隔离、以及来自 verifier 日志、JIT 输出和运行时计数器的结构化反馈。
+We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
+% 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
+Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%.
+% 在 2,874 个 session 的 agent 引导探索中发现，逐程序调优是必要的，因为同一个 pass 让某些程序加速 1.9 倍，却让另一些程序减速 14%。
+The tuned kinsn policy achieves 6\% speedup on x86 and 21\% speedup on ARM64 micro benchmarks.
+% 调优后的 kinsn 策略在 x86 上达到 6% 加速，在 ARM64 微基准上达到 21% 加速。
 \end{abstract}
 
 \maketitle
@@ -60,52 +58,51 @@ speedup) on x86 and 1.21$\times$ (21\% speedup) on ARM64 micro benchmarks.
 \section{Background}
 
 \paragraph{eBPF pipeline.}
-eBPF is a kernel extension mechanism that runs programs on
-performance-critical paths for networking~\cite{cilium},
-security~\cite{tetragon,falco}, and observability~\cite{bcc}. Developers
-write eBPF programs in C or Rust, compile them with Clang/LLVM to BPF
-bytecode, and load them into the kernel where a verifier checks safety
-before JIT compilation to native code. Each stage offers optimization
-opportunities: source-level restructuring, LLVM backend tuning, and
-kernel JIT lowering with architecture-specific instructions.
+eBPF is a kernel extension mechanism that runs programs on performance-critical paths for networking~\cite{cilium}, security~\cite{tetragon,falco}, and observability~\cite{bcc}.
+% eBPF 是一种内核扩展机制，在网络、安全和可观测性等性能关键路径上运行程序。
+Developers write eBPF programs in C or Rust, compile them with Clang/LLVM to BPF bytecode, and load them into the kernel where a verifier checks safety before JIT compilation to native code.
+% 开发者用 C 或 Rust 编写 eBPF 程序，用 Clang/LLVM 编译成 BPF 字节码，加载到内核中，由 verifier 检查安全性后 JIT 编译成原生代码。
+Each stage offers optimization opportunities: source-level restructuring, LLVM backend tuning, and kernel JIT lowering with architecture-specific instructions.
+% 每个阶段都提供优化机会：源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
 
 \paragraph{LLM agents and auto-research frameworks.}
-LLM agents use LLMs to reason about what to do and take actions via tool
-calls~\cite{swebench2023,llmagentsesurvey2025}. Auto-research frameworks enable
-agents to conduct experiments autonomously~\cite{gso2025}. Recent work applies this to C++ algorithm
-optimization~\cite{pie2024}, loop scheduling~\cite{compilot2025,awarecompiler2025},
-and GPU kernel generation~\cite{kernelbench2025,gso2025}.
+LLM agents use LLMs to reason about what to do and take actions via tool calls~\cite{swebench2023,llmagentsesurvey2025}.
+% LLM agents 使用 LLMs 来推理该做什么，并通过工具调用来执行动作。
+Auto-research frameworks enable agents to conduct experiments autonomously~\cite{gso2025}.
+% 自动研究框架使 agents 能够自主进行实验。
+Recent work applies this to C++ algorithm optimization~\cite{pie2024}, loop scheduling~\cite{compilot2025,awarecompiler2025}, and GPU kernel generation~\cite{kernelbench2025,gso2025}.
+% 最近的工作将其应用于 C++ 算法优化、循环调度和 GPU kernel 生成。
 
 \section{Motivation}
 
 \paragraph{eBPF optimization is hard.}
-The search space is large: eBPF programs span multiple optimization layers
-from source restructuring through LLVM backend tuning to kernel JIT lowering,
-each with architecture-specific choices. Static analysis cannot predict
-performance because bytecode size does not predict JIT output, JIT size does
-not predict runtime, and microbenchmark gains may not transfer to real
-workloads. Context determines effects: a transformation profitable on x86
-may regress on arm64, and the same pass that speeds up one program slows down
-another. Table~\ref{tab:motivation} shows concrete evidence: the bulk\_memory
-pass achieves 1.9$\times$ speedup on \texttt{siphash\_rotate64\_mixer} but
-causes 14\% regression on \texttt{bpftrace\_comm\_key\_fnv}. The only
-trustworthy signal comes from execution.
+The search space is large: eBPF programs span multiple optimization layers from source restructuring through LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices.
+% 搜索空间很大：eBPF 程序跨越多个优化层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，每层都有架构特定的选择。
+Static analysis cannot predict performance because bytecode size does not predict JIT output, JIT size does not predict runtime, and microbenchmark gains may not transfer to real workloads.
+% 静态分析无法预测性能，因为字节码大小无法预测 JIT 输出，JIT 大小无法预测运行时，微基准的收益可能无法迁移到真实工作负载。
+Context determines effects: a transformation profitable on x86 may regress on arm64, and the same pass that speeds up one program slows down another.
+% 上下文决定效果：在 x86 上有收益的变换可能在 arm64 上回退，同一个 pass 加速一个程序却减速另一个。
+Table~\ref{tab:motivation} shows concrete evidence: the bulk\_memory pass achieves 1.9$\times$ speedup on \texttt{siphash\_rotate64\_mixer} but causes 14\% regression on \texttt{bpftrace\_comm\_key\_fnv}.
+% 表 1 展示了具体证据：bulk_memory pass 在 siphash_rotate64_mixer 上达到 1.9 倍加速，但在 bpftrace_comm_key_fnv 上造成 14% 回退。
+The only trustworthy signal comes from execution.
+% 唯一可信的信号来自执行。
 
 \paragraph{Existing eBPF optimization.}
-K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF
-bytecode but operates as a one-shot optimizer without iterative feedback.
-Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations
-but requires source access and operates at compile time. The LLVM BPF backend
-includes static peephole optimizations but these are fixed heuristics applied
-uniformly. These approaches use fixed search strategies, and none adapts
-policy based on execution feedback.
+K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode but operates as a one-shot optimizer without iterative feedback.
+% K2 对 BPF 字节码应用随机超优化，但作为一次性优化器运行，没有迭代反馈。
+Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access and operates at compile time.
+% Merlin 结合 LLVM IR 和字节码变换，但需要源码访问且在编译时运行。
+The LLVM BPF backend includes static peephole optimizations but these are fixed heuristics applied uniformly.
+% LLVM BPF 后端包含静态窥孔优化，但这些是统一应用的固定启发式。
+These approaches use fixed search strategies, and none adapts policy based on execution feedback.
+% 这些方法使用固定的搜索策略，没有一个能根据执行反馈调整策略。
 
 \begin{table}[t]
 \footnotesize
 \centering
 \setlength{\tabcolsep}{3pt}
-\caption{Same kinsn pass produces opposite effects across benchmarks and apps,
-motivating per-program policy selection.}
+\caption{Same kinsn pass produces opposite effects across benchmarks and apps, motivating per-program policy selection.}
+% 表 1：同一个 kinsn pass 在不同基准和应用上产生相反效果，motivating 逐程序策略选择。
 \label{tab:motivation}
 \begin{tabular}{llr}
 \hline
@@ -129,21 +126,20 @@ ARM64 & bulk\_memory & 1.07$\times$ (regress) \\
 \section{Framework Design}
 
 \paragraph{Goals.}
-\sys enables agents to iteratively explore eBPF optimization strategies under
-real execution feedback. The framework addresses four goals: (1) crash
-isolation so failed optimizations do not corrupt the host, (2) bounded action
-spaces to make search tractable, (3) structured semantic feedback beyond
-pass/fail signals, and (4) reproducible execution on real workloads.
+\sys enables agents to iteratively explore eBPF optimization strategies under real execution feedback.
+% \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
+The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces to make search tractable, (3) structured semantic feedback beyond pass/fail signals, and (4) reproducible execution on real workloads.
+% 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行，(3) 超越 pass/fail 信号的结构化语义反馈，(4) 在真实工作负载上的可复现执行。
 
 \paragraph{Architecture.}
-Figure~\ref{fig:arch} shows the closed loop. LLM agents select optimization
-strategies across three layers: source restructuring, LLVM backend tuning, and
-kernel JIT lowering. The framework packages applications into Docker images,
-deploys to KVM or AWS for isolated execution, and returns structured feedback
-including verifier logs, JIT output size, and per-program runtime counters. The
-first benchmark track focuses on live bytecode optimization: pass list
-selection, per-program policies, and ReJIT after programs are loaded,
-leveraging runtime information such as loaded maps and verifier states.
+Figure~\ref{fig:arch} shows the closed loop.
+% 图 1 展示了闭环。
+LLM agents select optimization strategies across three layers: source restructuring, LLVM backend tuning, and kernel JIT lowering.
+% LLM agents 在三层中选择优化策略：源码重构、LLVM 后端调优和内核 JIT 降级。
+The framework packages applications into Docker images, deploys to KVM or AWS for isolated execution, and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters.
+% 框架将应用打包成 Docker 镜像，部署到 KVM 或 AWS 进行隔离执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
+The first benchmark track focuses on live bytecode optimization: pass list selection, per-program policies, and ReJIT after programs are loaded, leveraging runtime information such as loaded maps and verifier states.
+% 第一个 benchmark track 专注于运行时字节码优化：pass 列表选择、逐程序策略、以及程序加载后的 ReJIT，利用已加载 map 和 verifier 状态等运行时信息。
 
 \begin{figure}[t]
 \centering
@@ -180,74 +176,76 @@ leveraging runtime information such as loaded maps and verifier states.
 \draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
 \draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
 \end{tikzpicture}
-\caption{\sys closed loop: agents select strategies across source/LLVM/JIT
-layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
+\caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
+% 图 1：\sys 闭环：agents 在 source/LLVM/JIT 层选择策略，框架部署到 Docker/KVM/AWS，反馈指导迭代。
 \Description{Three-layer architecture: agent, framework, execution.}
 \label{fig:arch}
 \end{figure}
 
 \paragraph{Action space.}
-\sys defines action granularity from coarse to fine. A0 (no-op) leaves all
-programs unchanged as baseline. A1 (suite-wide) applies a fixed pass list to
-all programs. A2 (per-app) applies different policies to different
-applications. A3 (per-program) targets individual programs, such as optimizing
-only high-run-count programs. Higher levels A4 (per-site) and A5
-(profile-guided) control individual transformation sites and use PMU data. The
-first benchmark track targets A1--A3; higher levels require stable per-site
-reporting infrastructure.
+\sys defines action granularity from coarse to fine.
+% \sys 定义了从粗到细的动作粒度。
+A0 (no-op) leaves all programs unchanged as baseline.
+% A0（无操作）将所有程序保持不变作为基线。
+A1 (suite-wide) applies a fixed pass list to all programs.
+% A1（套件级）对所有程序应用固定的 pass 列表。
+A2 (per-app) applies different policies to different applications.
+% A2（应用级）对不同应用应用不同策略。
+A3 (per-program) targets individual programs, such as optimizing only high-run-count programs.
+% A3（程序级）针对单个程序，如只优化高运行次数的程序。
+Higher levels A4 (per-site) and A5 (profile-guided) control individual transformation sites and use PMU data.
+% 更高级别 A4（站点级）和 A5（profile 引导）控制单个变换站点并使用 PMU 数据。
+The first benchmark track targets A1--A3; higher levels require stable per-site reporting infrastructure.
+% 第一个 benchmark track 针对 A1--A3；更高级别需要稳定的逐站点报告基础设施。
 
 \section{Benchmark Design}
 
 \paragraph{Goals.}
-The benchmark evaluates agent actions with three goals: (1) production coverage
-through 6 real applications with 146 programs and 42 micro benchmarks, (2)
-anti-gaming enforcement through hidden correctness checks, and (3) fair
-comparison through noise-floor baselines.
+The benchmark evaluates agent actions with three goals: (1) production coverage through 6 real applications with 146 programs and 42 micro benchmarks, (2) hack detection through hidden correctness checks, and (3) fair comparison through baseline measurements.
+% benchmark 用三个目标评估 agent 动作：(1) 通过 6 个真实应用的 146 个程序和 42 个微基准实现生产覆盖，(2) 通过隐藏的正确性检查执行作弊检测，(3) 通过基线测量实现公平比较。
 
 \paragraph{Workloads.}
-The benchmark covers Cilium (CNI networking), Tetragon (security observability),
-Tracee (runtime security), Katran (load balancing), BCC (tracing tools), and
-OTEL (continuous profiling). Each task specifies a subject (application,
-workload, architecture), action space (optimization layer and granularity),
-budget (attempts, wall-clock time, tokens), and feedback (verifier logs, JIT
-size, per-program \texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta}).
-Production applications with representative workloads ensure results transfer
-to real deployments.
+The benchmark covers Cilium (CNI networking), Tetragon (security observability), Tracee (runtime security), Katran (load balancing), BCC (tracing tools), and OTEL (continuous profiling).
+% benchmark 涵盖 Cilium（CNI 网络）、Tetragon（安全可观测性）、Tracee（运行时安全）、Katran（负载均衡）、BCC（追踪工具）和 OTEL（持续 profiling）。
+Each task specifies a subject (application, workload, architecture), action space (optimization layer and granularity), budget (attempts, wall-clock time, tokens), and feedback (verifier logs, JIT size, per-program \texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta}).
+% 每个任务指定主体（应用、工作负载、架构）、动作空间（优化层和粒度）、预算（尝试次数、挂钟时间、token）和反馈（verifier 日志、JIT 大小、每程序 run_cnt_delta 和 run_time_ns_delta）。
+Production applications with representative workloads ensure results transfer to real deployments.
+% 使用代表性工作负载的生产应用确保结果能迁移到真实部署。
 
 \paragraph{Evaluation and metrics.}
-A candidate succeeds only if it passes all evaluation gates: verifier
-acceptance, application lifecycle completion (startup, attach, workload,
-shutdown), application-specific semantic checks (packet forwarding for Cilium,
-event detection for Tetragon, load balancing for Katran), and performance
-improvement beyond the noise gate (0.04$\times$ based on no-op floor).
-Forbidden actions include reducing workload duration, modifying inputs/outputs,
-filtering programs from measurement, hiding ReJIT failures, replacing loaders,
-and fabricating results. \sys reports validity rate, workload success rate,
-performance success rate, geomean ratio (per-program geometric mean of
-post/baseline), regret (gap to best-known action), cost (attempts, time,
-tokens), and integrity failure rate.
+A candidate succeeds only if it passes all evaluation gates: verifier acceptance, application lifecycle completion (startup, attach, workload, shutdown), application-specific semantic checks (packet forwarding for Cilium, event detection for Tetragon, load balancing for Katran), and performance improvement beyond the noise threshold (0.04$\times$ based on baseline variance).
+% 候选者只有通过所有评估门才能成功：verifier 接受、应用生命周期完成（启动、attach、工作负载、关闭）、应用特定语义检查（Cilium 的包转发、Tetragon 的事件检测、Katran 的负载均衡）、以及超过噪声阈值的性能提升（基于基线方差的 0.04x）。
+Forbidden actions include reducing workload duration, modifying inputs/outputs, filtering programs from measurement, hiding ReJIT failures, replacing loaders, and fabricating results.
+% 禁止的动作包括减少工作负载时长、修改输入/输出、从测量中过滤程序、隐藏 ReJIT 失败、替换 loader、伪造结果。
+\sys reports validity rate, workload success rate, performance success rate, geomean ratio (per-program geometric mean of post/baseline), regret (gap to best-known action), cost (attempts, time, tokens), and integrity failure rate.
+% \sys 报告有效率、工作负载成功率、性能成功率、geomean 比率（后/基线的每程序几何平均）、regret（与最优已知动作的差距）、成本（尝试次数、时间、token）和完整性失败率。
 
 \section{Preliminary Evaluation}
 
 \paragraph{Exploration scale.}
-We conducted 2,874 benchmark sessions exploring 25 unique pass configurations
-across 6 production applications. The exploration was driven by LLM agents
-(Claude Code and Codex), with 1,651 commits from automated agents. Figure~\ref{fig:timeline}
-shows the exploration timeline, with key discoveries annotated.
+We conducted 2,874 benchmark sessions exploring 25 unique pass configurations across 6 production applications.
+% 我们进行了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种唯一的 pass 配置。
+The exploration was driven by LLM agents (Claude Code and Codex), with 1,651 commits from automated agents.
+% 探索由 LLM agents（Claude Code 和 Codex）驱动，自动化 agents 产生了 1,651 个 commits。
+Figure~\ref{fig:timeline} shows the exploration timeline, with key discoveries annotated.
+% 图 2 展示了探索时间线，标注了关键发现。
 
 \paragraph{Kinsn optimization results.}
-The agent-guided exploration converged on kinsn (kernel instruction lowering)
-as the most effective optimization family, applying 305,449 transformation
-sites. On x86, the tuned kinsn policy achieves 0.94$\times$ BPF runtime
-(6\% speedup) across 6 apps. On ARM64 micro benchmarks, kinsn achieves
-1.21$\times$ speedup (21\% faster) with 24 wins out of 29 benchmarks.
+The agent-guided exploration converged on kinsn (kernel instruction lowering) as the most effective optimization family, applying 305,449 transformation sites.
+% agent 引导的探索收敛到 kinsn（内核指令降级）作为最有效的优化系列，应用了 305,449 个变换站点。
+On x86, the tuned kinsn policy achieves 0.94$\times$ BPF runtime (6\% speedup) across 6 apps.
+% 在 x86 上，调优后的 kinsn 策略在 6 个应用中达到 0.94x BPF 运行时（6% 加速）。
+On ARM64 micro benchmarks, kinsn achieves 1.21$\times$ speedup (21\% faster) with 24 wins out of 29 benchmarks.
+% 在 ARM64 微基准上，kinsn 达到 1.21x 加速（快 21%），在 29 个基准中赢了 24 个。
 Table~\ref{tab:results} summarizes the per-app breakdown.
+% 表 2 总结了每应用的分解。
 
 \begin{table}[t]
 \footnotesize
 \centering
 \setlength{\tabcolsep}{3pt}
 \caption{Per-app kinsn optimization results (x86 corpus, tuned policy).}
+% 表 2：每应用 kinsn 优化结果（x86 corpus，调优后的策略）。
 \label{tab:results}
 \begin{tabular}{lrrr}
 \hline
@@ -268,18 +266,19 @@ otel & 1.07$\times$ & 0/1 & 1,475 \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{timeline.pdf}
-\caption{Exploration timeline showing 2,874 sessions across x86 and ARM64.
-Key discoveries are annotated: noise floor calibration (May 8), LEA debugging
-(Jun 2), and kinsn breakthrough (Jun 3). Bar height indicates session density.}
+\caption{Exploration timeline showing 2,874 sessions across x86 and ARM64. Key discoveries are annotated: noise floor calibration (May 8), LEA debugging (Jun 2), and kinsn breakthrough (Jun 3). Bar height indicates session density.}
+% 图 2：探索时间线展示了 x86 和 ARM64 上的 2,874 个 session。标注了关键发现：噪声基线校准（5月8日）、LEA 调试（6月2日）、kinsn 突破（6月3日）。柱高表示 session 密度。
 \Description{Timeline of exploration sessions from May to June 2026.}
 \label{fig:timeline}
 \end{figure}
 
 \paragraph{Key findings.}
-The exploration revealed that per-program tuning is essential: the same kinsn
-pass that speeds up tracee by 7\% causes OTEL to regress by 7\%. Static
-policies cannot capture this variance. The framework enabled rapid iteration,
-with 515 sessions in 4 days during the intensive exploration period.
+The exploration revealed that per-program tuning is essential: the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%.
+% 探索揭示了逐程序调优是必要的：让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%。
+Static policies cannot capture this variance.
+% 静态策略无法捕捉这种差异。
+The framework enabled rapid iteration, with 515 sessions in 4 days during the intensive exploration period.
+% 框架实现了快速迭代，在密集探索期间 4 天内进行了 515 个 session。
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}
