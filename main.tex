@@ -126,8 +126,8 @@ Figure~\ref{fig:arch} shows the three-layer system architecture.
 % 图 1 展示了三层系统架构。
 Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and structured feedback guides the next iteration.
 % agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，结构化反馈指导下一次迭代。
-Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering.
-% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级。
+Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to emit native operations that execute as single CPU instructions.
+% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 生成作为单条 CPU 指令执行的原生操作。
 The framework supports live bytecode optimization leveraging runtime information such as loaded maps and counters.
 % 框架支持利用已加载 map 和计数器等运行时信息的运行时字节码优化。
 
@@ -181,12 +181,12 @@ The framework persists all session history for cross-iteration learning, and enf
 \section{Benchmark Design}
 
 \paragraph{Workloads.}
-The benchmark covers 6 production applications spanning networking (Cilium, Katran), security (Tetragon, Tracee), and observability (BCC, OTEL), with 146 BPF programs total.
-% benchmark 涵盖 6 个生产应用，覆盖网络（Cilium, Katran）、安全（Tetragon, Tracee）和可观测性（BCC, OTEL），共 146 个 BPF 程序。
-Additionally, 42 microbenchmarks isolate pure-bytecode execution cost and helper/map access patterns under controlled \texttt{BPF\_PROG\_TEST\_RUN} workloads.
-% 另有 42 个微基准在受控的 BPF\_PROG\_TEST\_RUN 工作负载下隔离纯字节码执行成本和 helper/map 访问模式。
-Each application runs its standard workload under the original upstream binary, so results reflect real deployment conditions rather than synthetic test harnesses.
-% 每个应用使用原始上游二进制运行标准工作负载，因此结果反映真实部署条件而非合成测试框架。
+The benchmark covers 6 production applications with 146 BPF programs.
+% benchmark 涵盖 6 个生产应用，共 146 个 BPF 程序。
+Networking apps (Cilium, Katran) use kernel pktgen~\cite{pktgen} to stress the datapath, while security and tracing apps (Tetragon, Tracee, BCC) use stress-ng~\cite{stressng} to generate high-rate syscall workloads, and OTEL uses interpreter hash loops for continuous profiling.
+% 网络应用（Cilium, Katran）使用内核 pktgen 压测数据路径，安全和追踪应用（Tetragon, Tracee, BCC）使用 stress-ng 生成高频系统调用负载，OTEL 使用解释器哈希循环进行持续 profiling。
+Additionally, 42 microbenchmarks isolate pure-bytecode execution and helper/map access under \texttt{BPF\_PROG\_TEST\_RUN}.
+% 另有 42 个微基准在 BPF\_PROG\_TEST\_RUN 下隔离纯字节码执行和 helper/map 访问。
 
 \paragraph{Metrics.}
 The benchmark measures both BPF-level and application-level impact.
