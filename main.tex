@@ -64,7 +64,7 @@ Each stage offers optimization opportunities, including source-level restructuri
 % 每个阶段都提供优化机会，包括源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
 
 \paragraph{LLM agents and auto-research frameworks.}
-LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2023,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025}.
+LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2024,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025}.
 % LLM agents 通过工具调用来推理任务并执行动作，自动研究框架将这一范式扩展到自主实验。
 Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie2024}, loop scheduling~\cite{compilot2025,awarecompiler2025}, and GPU kernel generation~\cite{kernelbench2025,gso2025}.
 % 最近的工作已将这些框架应用于 C++ 算法优化、循环调度和 GPU kernel 生成。
@@ -205,7 +205,7 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
-Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design and triggering exploration, while optimization algorithm design was fully autonomous.
+Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design (10.7K lines of Python) and triggering exploration, while optimization algorithm design was fully autonomous.
 % 使用 Claude Code 和 Codex 在 x86 KVM (8 vCPUs, 64GB) 和 ARM64 AWS t4g.small 上，LLM agents 在 7 周内（2026年5月6日-6月26日）自主驱动了 2,640 个 benchmark session，消耗 445M + 531M tokens，平均每 session 7h（最长 19h），人工参与仅限于框架设计和触发探索，算法设计全程无人工指导。
 Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
 % 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
