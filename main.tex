@@ -29,7 +29,7 @@
 
 \begin{document}
 
-\title{\sys: An Auto-Research Framework and Benchmark for Agentic eBPF Optimization}
+\title{\sys: An Auto-Research Framework and Benchmark for Agentic Kernel Extension Optimization}
 
 \author{Anonymous Authors}
 \affiliation{\institution{Anonymous Institution}}
@@ -42,8 +42,8 @@ Optimizing these programs is hard: the search space spans multiple layers, stati
 % 优化这些程序很难：搜索空间跨越多层，静态分析无法预测性能，而且上下文决定了某个变换是有益还是有害。
 This makes eBPF optimization an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
 % 这使得 eBPF 优化成为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
-We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, crash isolation, and structured feedback across the compilation pipeline.
-% 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、崩溃隔离、以及贯穿编译管线的结构化反馈。
+We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline.
+% 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
 Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%.
