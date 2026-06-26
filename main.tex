@@ -38,16 +38,16 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Optimizing these programs is hard because the search space spans multiple layers, static analysis cannot predict performance, and context determines whether a transformation helps or hurts.
-% 优化这些程序很难，因为搜索空间跨越多层，静态分析无法预测性能，而且上下文决定了某个变换是有益还是有害。
+Optimizing these programs is hard because the search space spans multiple layers including source code, LLVM backend, and kernel JIT, static analysis cannot predict performance, and the same pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
+% 优化这些程序很难，因为搜索空间跨越多层（源码、LLVM 后端、内核 JIT），静态分析无法预测性能，同一个 pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
 This makes eBPF optimization an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
 % 这使得 eBPF 优化成为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
 We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline.
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
-Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%. Optimizations at each compilation layer show the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT, while micro benchmarks achieve 6\% speedup on x86 and 21\% on ARM64.
-% 在 2,874 个 session 的 agent 引导探索中发现，逐程序调优是必要的，因为同一个 pass 让某些程序加速 1.9 倍却让另一些减速 14%，而调优后的 kinsn 策略在 x86 上达到 6% 加速、在 ARM64 微基准上达到 21%。
+Agent-guided exploration discovers optimizations at each compilation layer, with the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT, while micro benchmarks achieve 21\% speedup on both x86 and ARM64.
+% agent 引导的探索在每个编译层都发现了优化，最佳结果：源码层 Cilium +12%，LLVM 层 OTEL +34%，内核 JIT 层 Tetragon +17%，微基准在 x86 和 ARM64 上均达到 21% 加速。
 \end{abstract}
 
 \maketitle
@@ -205,12 +205,12 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
-LLM agents drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications, with 515 sessions in 4 days during the intensive exploration period.
-% LLM agents 驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置，在密集探索期间 4 天内进行了 515 个 session。
-Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries annotated.
-% 图 2 展示了标注关键发现的探索时间线。
-The exploration revealed that per-program tuning is essential because the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
-% 探索揭示了逐程序调优是必要的，因为让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
+LLM agents autonomously drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications, consuming approximately 30M tokens with no human guidance throughout the exploration.
+% LLM agents 自主驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置，消耗约 3000 万 tokens，全程无人工指导。
+Figure~\ref{fig:convergence} shows how each app's best result evolved over exploration attempts.
+% 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
+The exploration revealed that per-program tuning is essential because the same kernel JIT pass that speeds up Tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
+% 探索揭示了逐程序调优是必要的，因为让 Tracee 加速 7% 的同一个内核 JIT pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
 
 \begin{figure}[t]
 \centering
@@ -223,18 +223,12 @@ The exploration revealed that per-program tuning is essential because the same k
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{timeline.pdf}
-\caption{Exploration timeline showing 2,874 sessions across x86 and ARM64. Key discoveries are annotated: noise floor calibration (May 8), LEA debugging (Jun 2), and kinsn breakthrough (Jun 3). Bar height indicates session density.}
-% 图 2：探索时间线展示了 x86 和 ARM64 上的 2,874 个 session。标注了关键发现：噪声基线校准（5月8日）、LEA 调试（6月2日）、kinsn 突破（6月3日）。柱高表示 session 密度。
-\Description{Timeline of exploration sessions from May to June 2026.}
-\label{fig:timeline}
+\includegraphics[width=\linewidth]{convergence.pdf}
+\caption{Exploration convergence showing best-so-far improvement for each app. Cilium reaches +12\% at attempt 5, Tetragon stabilizes at +8\% after attempt 3, and Katran breaks through in Phase 2.}
+% 图 2：探索收敛曲线展示每个 app 的最佳结果演进。Cilium 在第 5 次尝试达到 +12%，Tetragon 在第 3 次后稳定在 +8%，Katran 在 Phase 2 突破。
+\Description{Convergence curves showing best improvement over exploration attempts.}
+\label{fig:convergence}
 \end{figure}
-
-\paragraph{Key findings.}
-The exploration revealed that per-program tuning is essential because the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
-% 探索揭示了逐程序调优是必要的，因为让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
-The framework enabled rapid iteration, with 515 sessions in 4 days during the intensive exploration period.
-% 框架实现了快速迭代，在密集探索期间 4 天内进行了 515 个 session。
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}
