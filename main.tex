@@ -126,8 +126,8 @@ Figure~\ref{fig:arch} shows the three-layer system architecture.
 % 图 1 展示了三层系统架构。
 Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and structured feedback guides the next iteration.
 % agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，结构化反馈指导下一次迭代。
-Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to emit native operations that execute as single CPU instructions.
-% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 生成作为单条 CPU 指令执行的原生操作。
+Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to safely extend the eBPF JIT with native operations.
+% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 安全扩展 eBPF JIT 以支持原生操作。
 The framework supports live bytecode optimization leveraging runtime information such as loaded maps and counters.
 % 框架支持利用已加载 map 和计数器等运行时信息的运行时字节码优化。
 
@@ -200,13 +200,23 @@ Runs use x86 KVM and arm64 AWS to expose architecture-dependent effects.
 
 \section{Preliminary Evaluation}
 
-\paragraph{Exploration scale.}
-LLM agents drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications. Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries annotated.
-% LLM agents 驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置。图 2 展示了标注关键发现的探索时间线。
+\paragraph{Multi-layer optimization results.}
+Agent exploration discovered effective optimizations across all three compilation layers.
+% agent 探索在所有三个编译层都发现了有效的优化。
+At the source layer, rewriting eBPF C code improved workload throughput by up to 12\% on Cilium, 9\% on Katran, and 8\% on Tetragon.
+% 在源码层，重写 eBPF C 代码在 Cilium 上提升了最高 12\% 的工作负载吞吐量，Katran 9\%，Tetragon 8\%。
+At the LLVM/bytecode layer, the map\_inline pass speculatively inlines map lookups with constant values, achieving 34\% BPF speedup on OTEL and 0.89$\times$ suite-wide geomean.
+% 在 LLVM/字节码层，map\_inline pass 将 map 查找推测性内联为常量值，在 OTEL 上实现 34\% BPF 加速，suite-wide geomean 为 0.89x。
+At the kernel JIT layer, the kinsn pass (which emits native operations via Kops) achieved 6\% BPF speedup on x86 across 6 apps and 21\% speedup on ARM64 microbenchmarks (Table~\ref{tab:results}).
+% 在内核 JIT 层，kinsn pass（通过 Kops 生成原生操作）在 x86 上的 6 个应用中实现 6\% BPF 加速，在 ARM64 微基准上实现 21\% 加速（表 2）。
 
-\paragraph{Kinsn optimization results.}
-The agent-guided exploration converged on kinsn (kernel instruction lowering) as the most effective optimization family, applying 305,449 transformation sites. On x86 the tuned policy achieves 0.94$\times$ BPF runtime (6\% speedup) across 6 apps, and on ARM64 micro benchmarks kinsn achieves 1.21$\times$ speedup with 24 wins out of 29 benchmarks (Table~\ref{tab:results}).
-% agent 引导的探索收敛到 kinsn（内核指令降级）作为最有效的优化系列，应用了 305,449 个变换站点。在 x86 上调优后的策略在 6 个应用中达到 0.94x BPF 运行时（6% 加速），在 ARM64 微基准上 kinsn 达到 1.21x 加速，在 29 个基准中赢了 24 个（表 2）。
+\paragraph{Agent exploration process.}
+LLM agents drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications, with 515 sessions in 4 days during the intensive exploration period.
+% LLM agents 驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置，在密集探索期间 4 天内进行了 515 个 session。
+Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries annotated.
+% 图 2 展示了标注关键发现的探索时间线。
+The exploration revealed that per-program tuning is essential because the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
+% 探索揭示了逐程序调优是必要的，因为让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
 
 \begin{table}[t]
 \footnotesize
