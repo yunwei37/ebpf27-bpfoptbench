@@ -207,7 +207,7 @@ At the source layer, rewriting eBPF C code improved workload throughput by up to
 % 在源码层，重写 eBPF C 代码在 Cilium 上提升了最高 12\% 的工作负载吞吐量，Katran 9\%，Tetragon 8\%。
 At the LLVM/bytecode layer, the map\_inline pass speculatively inlines map lookups with constant values, achieving 34\% BPF speedup on OTEL and 0.89$\times$ suite-wide geomean.
 % 在 LLVM/字节码层，map\_inline pass 将 map 查找推测性内联为常量值，在 OTEL 上实现 34\% BPF 加速，suite-wide geomean 为 0.89x。
-At the kernel JIT layer, the kinsn pass (which emits native operations via Kops) achieved 6\% BPF speedup on x86 across 6 apps and 21\% speedup on ARM64 microbenchmarks (Table~\ref{tab:results}).
+At the kernel JIT layer, the kinsn pass (which emits native operations via Kops) achieved 6\% BPF speedup on x86 across 6 apps and 21\% speedup on ARM64 microbenchmarks (Figure~\ref{fig:layers}).
 % 在内核 JIT 层，kinsn pass（通过 Kops 生成原生操作）在 x86 上的 6 个应用中实现 6\% BPF 加速，在 ARM64 微基准上实现 21\% 加速（表 2）。
 
 \paragraph{Agent exploration process.}
@@ -218,28 +218,14 @@ Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries an
 The exploration revealed that per-program tuning is essential because the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
 % 探索揭示了逐程序调优是必要的，因为让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
 
-\begin{table}[t]
-\footnotesize
+\begin{figure}[t]
 \centering
-\setlength{\tabcolsep}{3pt}
-\caption{Per-app kinsn optimization results (x86 corpus, tuned policy).}
-% 表 2：每应用 kinsn 优化结果（x86 corpus，调优后的策略）。
-\label{tab:results}
-\begin{tabular}{lrrr}
-\hline
-App & BPF Geomean & Wins/Losses & Sites Applied \\
-\hline
-tracee & 0.93$\times$ & 35/5 & 14,833 \\
-tetragon & 0.83$\times$ & 5/0 & 2,891 \\
-cilium & 0.85$\times$ & 2/0 & 4,086 \\
-bcc & 0.96$\times$ & 11/4 & 77 \\
-katran & 0.94$\times$ & 1/0 & 90 \\
-otel & 1.07$\times$ & 0/1 & 1,475 \\
-\hline
-\textbf{Overall} & \textbf{0.94$\times$} & 54/10 & 23,452 \\
-\hline
-\end{tabular}
-\end{table}
+\includegraphics[width=\linewidth]{layers.pdf}
+\caption{Best optimization results per compilation layer. Each app is color-coded; the same app may benefit from different layers.}
+% 图：每层最佳优化结果。每个 app 用颜色区分；同一个 app 可能在不同层受益。
+\label{fig:layers}
+\Description{Bar chart showing best optimization results per layer.}
+\end{figure}
 
 \begin{figure}[t]
 \centering
