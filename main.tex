@@ -80,35 +80,35 @@ Static analysis cannot predict performance because bytecode size does not predic
 % 静态分析无法预测性能，因为字节码大小无法预测 JIT 输出，JIT 大小无法预测运行时，微基准的收益可能无法迁移到真实工作负载。
 Context determines effects: a transformation profitable on x86 may regress on arm64, and the same pass that speeds up one program slows down another.
 % 上下文决定效果：在 x86 上有收益的变换可能在 arm64 上回退，同一个 pass 加速一个程序却减速另一个。
-Table~\ref{tab:motivation} shows concrete evidence: the bulk\_memory pass achieves 1.9$\times$ speedup on \texttt{siphash\_rotate64\_mixer} but causes 14\% regression on \texttt{bpftrace\_comm\_key\_fnv}, so the only trustworthy signal comes from execution.
-% 表 1 展示了具体证据：bulk_memory pass 在 siphash_rotate64_mixer 上达到 1.9 倍加速，但在 bpftrace_comm_key_fnv 上造成 14% 回退，因此唯一可信的信号来自执行。
+Table~\ref{tab:motivation} shows concrete evidence: a single pass can speed up one program by 1.9$\times$ while slowing another by 14\%, so the only trustworthy signal comes from execution.
+% 表 1 展示了具体证据：同一个 pass 可以让一个程序加速 1.9 倍，却让另一个程序减速 14%，因此唯一可信的信号来自执行。
 
 \paragraph{Existing eBPF optimization.}
 Existing tools take fixed approaches: K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
 % 现有工具采用固定方法：K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
-None of these adapts policy based on execution feedback.
-% 这些方法都不能根据执行反馈调整策略。
+All search within predefined transformation spaces; none can understand why a transformation succeeds, generalize patterns across programs, or devise new optimization strategies.
+% 所有方法都在预定义的变换空间内搜索；没有一个能理解变换为何成功、跨程序归纳规律、或设计新的优化策略。
 
 \begin{table}[t]
 \footnotesize
 \centering
 \setlength{\tabcolsep}{3pt}
-\caption{Same kinsn pass produces opposite effects across benchmarks and apps, motivating per-program policy selection.}
-% 表 1：同一个 kinsn pass 在不同基准和应用上产生相反效果，motivating 逐程序策略选择。
+\caption{Same optimization pass produces opposite effects across programs and architectures, motivating per-program policy selection.}
+% 表 1：同一个优化 pass 在不同程序和架构上产生相反效果，motivating 逐程序策略选择。
 \label{tab:motivation}
 \begin{tabular}{llr}
 \hline
-Target & kinsn Pass & Speedup \\
+Target & Pass & Speedup \\
 \hline
 \multicolumn{3}{l}{\textit{Micro benchmarks (ARM64)}} \\
-\texttt{siphash\_rotate64\_mixer} & bulk\_memory & 1.90$\times$ \\
-\texttt{bpftrace\_comm\_key\_fnv} & bulk\_memory & 0.86$\times$ \\
+Program A & bulk\_memory & 1.90$\times$ \\
+Program B & bulk\_memory & 0.86$\times$ \\
 \hline
 \multicolumn{3}{l}{\textit{Production apps (x86, same policy)}} \\
-BCC (8 tools) & kinsn all & 0.96$\times$ (4\% faster) \\
-OTEL profiler & kinsn all & 1.07$\times$ (7\% slower) \\
+BCC (8 tools) & all passes & 0.96$\times$ (4\% faster) \\
+OTEL profiler & all passes & 1.07$\times$ (7\% slower) \\
 \hline
-\multicolumn{3}{l}{\textit{Cross-architecture (Cilium, bulk\_memory)}} \\
+\multicolumn{3}{l}{\textit{Cross-architecture (Cilium)}} \\
 x86 & bulk\_memory & 0.78$\times$ (best) \\
 ARM64 & bulk\_memory & 1.07$\times$ (regress) \\
 \hline
