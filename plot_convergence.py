@@ -23,7 +23,7 @@ plt.rcParams.update({
     'xtick.labelsize': 8,
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
-    'figure.figsize': (3.5, 2.8),  # Single column width for 2-column paper
+    'figure.figsize': (5.6, 2.5),  # Single column width for 2-column paper
     'axes.grid': True,
     'grid.alpha': 0.3,
     'lines.linewidth': 1.5,
@@ -369,7 +369,7 @@ def main():
     ax.set_ylim(-2, 14)
 
     # Position legend in lower right to avoid data curves
-    ax.legend(loc='lower right', framealpha=0.9)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.35), ncol=4, fontsize=11, framealpha=0.9)
 
     # Tight layout for paper
     plt.tight_layout()

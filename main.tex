@@ -205,12 +205,13 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
-LLM agents autonomously drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications, consuming approximately 30M tokens with no human guidance throughout the exploration.
-% LLM agents 自主驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置，消耗约 3000 万 tokens，全程无人工指导。
+LLM agents autonomously drove 2,638 benchmark sessions across 6 production applications over 2 months (May--Jun 2026), consuming approximately 200M tokens with no human guidance for algorithm design (humans only built the benchmark framework).
+% LLM agents 在 2 个月内（2026年5-6月）自主驱动了 2,638 个 benchmark session，涵盖 6 个生产应用，消耗约 2 亿 tokens，算法设计全程无人工指导（人类只构建了 benchmark 框架）。
+Figure~\ref{fig:timeline} shows the raw exploration timeline with 346 data points spanning May--Jun 2026, where each point represents a benchmark session measuring improvement percentage.
+% 图展示了原始探索时间线，包含 346 个数据点跨越 2026 年 5-6 月，每个点代表一次测量改进百分比的 benchmark session。
 Figure~\ref{fig:convergence} shows how each app's best result evolved over exploration attempts.
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
-The exploration revealed that per-program tuning is essential because the same kernel JIT pass that speeds up Tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
-% 探索揭示了逐程序调优是必要的，因为让 Tracee 加速 7% 的同一个内核 JIT pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
+
 
 \begin{figure}[t]
 \centering
@@ -223,9 +224,18 @@ The exploration revealed that per-program tuning is essential because the same k
 
 \begin{figure}[t]
 \centering
+\includegraphics[width=\linewidth]{timeline.pdf}
+\caption{Raw exploration timeline (May--Jun 2026) with 346 data points across corpus apps and micro benchmarks. Early micro sessions show high variance (up to +40\%), later corpus runs stabilize near measured gains.}
+% 图：原始探索时间线（2026年5-6月），包含 346 个数据点跨 corpus apps 和 micro benchmarks。早期 micro session 显示高方差（最高 +40%），后期 corpus 运行稳定在实测收益附近。
+\Description{Timeline scatter plot of all benchmark sessions from May to June 2026.}
+\label{fig:timeline}
+\end{figure}
+
+\begin{figure}[t]
+\centering
 \includegraphics[width=\linewidth]{convergence.pdf}
-\caption{Exploration convergence showing best-so-far improvement for each app. Cilium reaches +12\% at attempt 5, Tetragon stabilizes at +8\% after attempt 3, and Katran breaks through in Phase 2.}
-% 图 2：探索收敛曲线展示每个 app 的最佳结果演进。Cilium 在第 5 次尝试达到 +12%，Tetragon 在第 3 次后稳定在 +8%，Katran 在 Phase 2 突破。
+\caption{Source-level exploration convergence showing best-so-far improvement for each app. Cilium reaches +12\% at attempt 5, Tetragon stabilizes at +8\% after attempt 3, and Katran breaks through in Phase 2.}
+% 图：源码层探索收敛曲线展示每个 app 的最佳结果演进。Cilium 在第 5 次尝试达到 +12%，Tetragon 在第 3 次后稳定在 +8%，Katran 在 Phase 2 突破。
 \Description{Convergence curves showing best improvement over exploration attempts.}
 \label{fig:convergence}
 \end{figure}
