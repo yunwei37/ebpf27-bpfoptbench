@@ -14,8 +14,8 @@ app_colors = {
     'BCC': '#edc949',
 }
 
-# Best few apps per layer
-source_data = [('Cilium', 12), ('Katran', 9), ('Tetragon', 8)]
+# Best few apps per layer (Phase 3 peaks)
+source_data = [('Cilium', 15), ('Katran', 12), ('Tetragon', 12), ('BCC', 12)]
 llvm_data = [('OTEL', 34), ('Katran', 12)]
 kernel_data = [('Tetragon', 17), ('Cilium', 15), ('Tracee', 7), ('BCC', 4)]
 
