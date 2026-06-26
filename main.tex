@@ -128,45 +128,52 @@ Optimization spans three compilation layers, from source restructuring through L
 The framework supports live bytecode optimization leveraging runtime information such as loaded maps and counters.
 % 框架支持利用已加载 map 和计数器等运行时信息的运行时字节码优化。
 
+% \begin{figure}[t]
+% \centering
+% \begin{tikzpicture}[
+%   bigbox/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
+%   smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
+%   label/.style={font=\normalsize\bfseries},
+%   arrowlabel/.style={font=\small},
+%   arrow/.style={-Latex, thick}
+% ]
+% % Agent layer
+% \node[bigbox, fill=blue!10] (agent) at (0,0) {};
+% \node[label, right=0.2cm of agent.east, anchor=west] {LLM Agent};
+% \node[smallbox] at ([xshift=-1.5cm]agent.center) (claude) {Claude};
+% \node[smallbox] at (agent.center) (codex) {Codex};
+% \node[smallbox] at ([xshift=1.5cm]agent.center) (otheragent) {$\cdots$};
+
+% % Framework layer
+% \node[bigbox, fill=orange!10] (framework) at (0,-1.6) {};
+% \node[label, right=0.2cm of framework.east, anchor=west] {Framework};
+% \node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
+% \node[smallbox] at (framework.center) (llvm) {LLVM};
+% \node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
+
+% % Execution layer
+% \node[bigbox, fill=green!10] (exec) at (0,-3.2) {};
+% \node[label, right=0.2cm of exec.east, anchor=west] {Execution};
+% \node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
+% \node[smallbox] at (exec.center) (kvm) {KVM};
+% \node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
+
+% % Arrows
+% \draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (framework.north);
+% \draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
+% \draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
+% \end{tikzpicture}
+% \caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
+% % 图 1：\sys 闭环：agents 在 source/LLVM/JIT 层选择策略，框架部署到 Docker/KVM/AWS，反馈指导迭代。
+% \Description{Three-layer architecture: agent, framework, execution.}
+% \label{fig:arch}
+% \end{figure}
+
 \begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-  bigbox/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
-  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
-  label/.style={font=\normalsize\bfseries},
-  arrowlabel/.style={font=\small},
-  arrow/.style={-Latex, thick}
-]
-% Agent layer
-\node[bigbox, fill=blue!10] (agent) at (0,0) {};
-\node[label, right=0.2cm of agent.east, anchor=west] {LLM Agent};
-\node[smallbox] at ([xshift=-1.5cm]agent.center) (claude) {Claude};
-\node[smallbox] at (agent.center) (codex) {Codex};
-\node[smallbox] at ([xshift=1.5cm]agent.center) (otheragent) {$\cdots$};
-
-% Framework layer
-\node[bigbox, fill=orange!10] (framework) at (0,-1.6) {};
-\node[label, right=0.2cm of framework.east, anchor=west] {Framework};
-\node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
-\node[smallbox] at (framework.center) (llvm) {LLVM};
-\node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
-
-% Execution layer
-\node[bigbox, fill=green!10] (exec) at (0,-3.2) {};
-\node[label, right=0.2cm of exec.east, anchor=west] {Execution};
-\node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
-\node[smallbox] at (exec.center) (kvm) {KVM};
-\node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
-
-% Arrows
-\draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (framework.north);
-\draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
-\draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
-\end{tikzpicture}
-\caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
-% 图 1：\sys 闭环：agents 在 source/LLVM/JIT 层选择策略，框架部署到 Docker/KVM/AWS，反馈指导迭代。
-\Description{Three-layer architecture: agent, framework, execution.}
-\label{fig:arch}
+    \centering
+    \includegraphics[width=\columnwidth]{figures/figure-1.pdf}
+    \caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
+    \label{fig:arch}
 \end{figure}
 
 % \paragraph{Process.}
