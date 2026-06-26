@@ -38,8 +38,8 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Optimizing these programs is hard: the search space spans multiple layers, static analysis cannot predict performance, and context determines whether a transformation helps or hurts.
-% 优化这些程序很难：搜索空间跨越多层，静态分析无法预测性能，而且上下文决定了某个变换是有益还是有害。
+Optimizing these programs is hard because the search space spans multiple layers, static analysis cannot predict performance, and context determines whether a transformation helps or hurts.
+% 优化这些程序很难，因为搜索空间跨越多层，静态分析无法预测性能，而且上下文决定了某个变换是有益还是有害。
 This makes eBPF optimization an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
 % 这使得 eBPF 优化成为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
 We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline.
@@ -62,8 +62,8 @@ eBPF is a kernel extension mechanism that runs programs on performance-critical 
 % eBPF 是一种内核扩展机制，在网络、安全和可观测性等性能关键路径上运行程序。
 Developers write eBPF programs in C or Rust, compile them with Clang/LLVM to BPF bytecode, and load them into the kernel where a verifier checks safety before JIT compilation to native code.
 % 开发者用 C 或 Rust 编写 eBPF 程序，用 Clang/LLVM 编译成 BPF 字节码，加载到内核中，由 verifier 检查安全性后 JIT 编译成原生代码。
-Each stage offers optimization opportunities: source-level restructuring, LLVM backend tuning, and kernel JIT lowering with architecture-specific instructions.
-% 每个阶段都提供优化机会：源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
+Each stage offers optimization opportunities, including source-level restructuring, LLVM backend tuning, and kernel JIT lowering with architecture-specific instructions.
+% 每个阶段都提供优化机会，包括源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
 
 \paragraph{LLM agents and auto-research frameworks.}
 LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2023,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025}.
@@ -74,18 +74,18 @@ Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie
 \section{Motivation}
 
 \paragraph{eBPF optimization is hard.}
-The search space is large: eBPF programs span multiple optimization layers from source restructuring through LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices.
-% 搜索空间很大：eBPF 程序跨越多个优化层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，每层都有架构特定的选择。
+The search space is large because eBPF programs span multiple optimization layers from source restructuring through LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices.
+% 搜索空间很大，因为 eBPF 程序跨越多个优化层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，每层都有架构特定的选择。
 Static analysis cannot predict performance because bytecode size does not predict JIT output, JIT size does not predict runtime, and microbenchmark gains may not transfer to real workloads.
 % 静态分析无法预测性能，因为字节码大小无法预测 JIT 输出，JIT 大小无法预测运行时，微基准的收益可能无法迁移到真实工作负载。
-Context determines effects: a transformation profitable on x86 may regress on arm64, and the same pass that speeds up one program slows down another.
-% 上下文决定效果：在 x86 上有收益的变换可能在 arm64 上回退，同一个 pass 加速一个程序却减速另一个。
-Table~\ref{tab:motivation} shows concrete evidence: a single pass can speed up one program by 1.9$\times$ while slowing another by 14\%, so the only trustworthy signal comes from execution.
-% 表 1 展示了具体证据：同一个 pass 可以让一个程序加速 1.9 倍，却让另一个程序减速 14%，因此唯一可信的信号来自执行。
+Context determines effects, so a transformation profitable on x86 may regress on arm64, and the same pass that speeds up one program slows down another.
+% 上下文决定效果，因此在 x86 上有收益的变换可能在 arm64 上回退，同一个 pass 加速一个程序却减速另一个。
+Table~\ref{tab:motivation} shows this concretely, as a single pass can speed up one program by 1.9$\times$ while slowing another by 14\%, so the only trustworthy signal comes from execution.
+% 表 1 具体展示了这一点，同一个 pass 可以让一个程序加速 1.9 倍，却让另一个程序减速 14%，因此唯一可信的信号来自执行。
 
 \paragraph{Existing eBPF optimization.}
-Existing tools take fixed approaches: K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
-% 现有工具采用固定方法：K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
+Existing tools take fixed approaches. K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
+% 现有工具采用固定方法。K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
 All search within predefined transformation spaces; none can understand why a transformation succeeds, generalize patterns across programs, or devise new optimization strategies.
 % 所有方法都在预定义的变换空间内搜索；没有一个能理解变换为何成功、跨程序归纳规律、或设计新的优化策略。
 
@@ -175,10 +175,10 @@ The framework supports live bytecode optimization leveraging runtime information
 \end{figure}
 
 \paragraph{Iteration.}
-Each iteration follows a closed loop: agents submit an optimization configuration (pass list and per-program policies), the framework executes it under budget constraints (iteration count, wall-clock time, tokens), and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters or workload metrics.
-% 每次迭代遵循闭环：agents 提交优化配置（pass 列表和逐程序策略），框架在预算约束（迭代次数、挂钟时间、token）下执行，并返回包括 verifier 日志、JIT 输出大小、每程序运行时计数器或工作负载指标的结构化反馈。
-The framework persists all session history for cross-iteration learning, and enforces integrity constraints to prevent reward hacking: agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
-% 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束以防止奖励作弊：agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
+Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters.
+% 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
+The framework persists all session history for cross-iteration learning, and enforces integrity constraints so that agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
+% 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束使得 agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
 
 \section{Benchmark Design}
 
@@ -193,8 +193,8 @@ Each task specifies a subject (application, workload, architecture), action spac
 % 每个任务指定主体（应用、工作负载、架构）、动作空间（优化层和粒度）、预算（尝试次数、挂钟时间、token）和反馈（verifier 日志、JIT 大小、每程序 run_cnt_delta 和 run_time_ns_delta），使用代表性工作负载的生产应用确保结果能迁移到真实部署。
 
 \paragraph{Evaluation and metrics.}
-A candidate succeeds only if it passes all evaluation gates: verifier acceptance, application lifecycle completion (startup, attach, workload, shutdown), application-specific semantic checks (packet forwarding for Cilium, event detection for Tetragon, load balancing for Katran), and performance improvement beyond the noise threshold (0.04$\times$ based on baseline variance).
-% 候选者只有通过所有评估门才能成功：verifier 接受、应用生命周期完成（启动、attach、工作负载、关闭）、应用特定语义检查（Cilium 的包转发、Tetragon 的事件检测、Katran 的负载均衡）、以及超过噪声阈值的性能提升（基于基线方差的 0.04x）。
+A candidate succeeds only if it passes all evaluation gates, including verifier acceptance, application lifecycle completion, application-specific semantic checks, and performance improvement beyond the noise threshold.
+% 候选者只有通过所有评估门才能成功，包括 verifier 接受、应用生命周期完成、应用特定语义检查、以及超过噪声阈值的性能提升。
 Forbidden actions include reducing workload duration, modifying inputs/outputs, filtering programs from measurement, hiding ReJIT failures, replacing loaders, and fabricating results.
 % 禁止的动作包括减少工作负载时长、修改输入/输出、从测量中过滤程序、隐藏 ReJIT 失败、替换 loader、伪造结果。
 \sys reports validity rate, workload success rate, performance success rate, geomean ratio (per-program geometric mean of post/baseline), regret (gap to best-known action), cost (attempts, time, tokens), and integrity failure rate.
@@ -207,8 +207,8 @@ LLM agents (Claude Code and Codex) drove 2,874 benchmark sessions exploring 25 u
 % LLM agents（Claude Code 和 Codex）驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种唯一的 pass 配置，产生了 1,651 个自动化 commits；图 2 展示了标注关键发现的探索时间线。
 
 \paragraph{Kinsn optimization results.}
-The agent-guided exploration converged on kinsn (kernel instruction lowering) as the most effective optimization family, applying 305,449 transformation sites: on x86 the tuned policy achieves 0.94$\times$ BPF runtime (6\% speedup) across 6 apps, and on ARM64 micro benchmarks kinsn achieves 1.21$\times$ speedup with 24 wins out of 29 benchmarks (Table~\ref{tab:results}).
-% agent 引导的探索收敛到 kinsn（内核指令降级）作为最有效的优化系列，应用了 305,449 个变换站点：在 x86 上调优后的策略在 6 个应用中达到 0.94x BPF 运行时（6% 加速），在 ARM64 微基准上 kinsn 达到 1.21x 加速，在 29 个基准中赢了 24 个（表 2）。
+The agent-guided exploration converged on kinsn (kernel instruction lowering) as the most effective optimization family, applying 305,449 transformation sites. On x86 the tuned policy achieves 0.94$\times$ BPF runtime (6\% speedup) across 6 apps, and on ARM64 micro benchmarks kinsn achieves 1.21$\times$ speedup with 24 wins out of 29 benchmarks (Table~\ref{tab:results}).
+% agent 引导的探索收敛到 kinsn（内核指令降级）作为最有效的优化系列，应用了 305,449 个变换站点。在 x86 上调优后的策略在 6 个应用中达到 0.94x BPF 运行时（6% 加速），在 ARM64 微基准上 kinsn 达到 1.21x 加速，在 29 个基准中赢了 24 个（表 2）。
 
 \begin{table}[t]
 \footnotesize
@@ -243,8 +243,8 @@ otel & 1.07$\times$ & 0/1 & 1,475 \\
 \end{figure}
 
 \paragraph{Key findings.}
-The exploration revealed that per-program tuning is essential: the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
-% 探索揭示了逐程序调优是必要的：让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
+The exploration revealed that per-program tuning is essential because the same kinsn pass that speeds up tracee by 7\% causes OTEL to regress by 7\%, and static policies cannot capture this variance.
+% 探索揭示了逐程序调优是必要的，因为让 tracee 加速 7% 的同一个 kinsn pass 导致 OTEL 回退 7%，静态策略无法捕捉这种差异。
 The framework enabled rapid iteration, with 515 sessions in 4 days during the intensive exploration period.
 % 框架实现了快速迭代，在密集探索期间 4 天内进行了 515 个 session。
 
