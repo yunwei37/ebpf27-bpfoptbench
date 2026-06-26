@@ -205,19 +205,18 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations across source, LLVM
 % 图展示了每层的最佳逐应用结果。
 
 \paragraph{Agent exploration process.}
-LLM agents autonomously drove 2,638 benchmark sessions across 6 production applications over 2 months (May--Jun 2026), consuming approximately 200M tokens with no human guidance for algorithm design (humans only built the benchmark framework).
-% LLM agents 在 2 个月内（2026年5-6月）自主驱动了 2,638 个 benchmark session，涵盖 6 个生产应用，消耗约 2 亿 tokens，算法设计全程无人工指导（人类只构建了 benchmark 框架）。
-Figure~\ref{fig:timeline} shows the raw exploration timeline with 346 data points spanning May--Jun 2026, where each point represents a benchmark session measuring improvement percentage.
-% 图展示了原始探索时间线，包含 346 个数据点跨越 2026 年 5-6 月，每个点代表一次测量改进百分比的 benchmark session。
-Figure~\ref{fig:convergence} shows how each app's best result evolved over exploration attempts.
+Using Claude Code and Codex, LLM agents autonomously drove 2,640 benchmark sessions across 6 production applications over 2 months (May--Jun 2026), consuming 445M tokens (Claude) + 531M tokens (Codex) with no human guidance for algorithm design (humans only built the benchmark framework).
+% 使用 Claude Code 和 Codex，LLM agents 在 2 个月内（2026年5-6月）自主驱动了 2,640 个 benchmark session，涵盖 6 个生产应用，消耗 445M tokens (Claude) + 531M tokens (Codex)，算法设计全程无人工指导（人类只构建了 benchmark 框架）。
+Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
+% 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
 
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{layers.pdf}
-\caption{Best optimization results per compilation layer. Each app is color-coded; the same app may benefit from different layers.}
-% 图：每层最佳优化结果。每个 app 用颜色区分；同一个 app 可能在不同层受益。
+\caption{Best results per layer. Apps are color-coded; the same app may benefit from multiple layers.}
+% 图：每层最佳结果。Apps 按颜色区分；同一 app 可从多层受益。
 \label{fig:layers}
 \Description{Bar chart showing best optimization results per layer.}
 \end{figure}
@@ -225,18 +224,18 @@ Figure~\ref{fig:convergence} shows how each app's best result evolved over explo
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{timeline.pdf}
-\caption{Raw exploration timeline (May--Jun 2026) with 346 data points across corpus apps and micro benchmarks. Early micro sessions show high variance (up to +40\%), later corpus runs stabilize near measured gains.}
-% 图：原始探索时间线（2026年5-6月），包含 346 个数据点跨 corpus apps 和 micro benchmarks。早期 micro session 显示高方差（最高 +40%），后期 corpus 运行稳定在实测收益附近。
-\Description{Timeline scatter plot of all benchmark sessions from May to June 2026.}
+\caption{Exploration timeline (347 runs, May--Jun 2026). Early micro runs show high variance; corpus apps stabilize over time.}
+% 图：探索时间线（347 runs，2026年5-6月）。早期 micro 运行方差大；corpus apps 随时间稳定。
+\Description{Timeline scatter plot of benchmark sessions.}
 \label{fig:timeline}
 \end{figure}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{convergence.pdf}
-\caption{Source-level exploration convergence showing best-so-far improvement for each app. Cilium reaches +12\% at attempt 5, Tetragon stabilizes at +8\% after attempt 3, and Katran breaks through in Phase 2.}
-% 图：源码层探索收敛曲线展示每个 app 的最佳结果演进。Cilium 在第 5 次尝试达到 +12%，Tetragon 在第 3 次后稳定在 +8%，Katran 在 Phase 2 突破。
-\Description{Convergence curves showing best improvement over exploration attempts.}
+\caption{Source-level convergence (best-so-far per attempt). Cilium +12\% at attempt 5; Katran breaks through in Phase 2.}
+% 图：源码层收敛（每次尝试的最佳结果）。Cilium 第 5 次 +12%；Katran 在 Phase 2 突破。
+\Description{Convergence curves per app.}
 \label{fig:convergence}
 \end{figure}
 
