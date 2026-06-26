@@ -120,8 +120,8 @@ ARM64 & bulk\_memory & 1.07$\times$ (regress) \\
 \paragraph{Goals.}
 \sys enables agents to iteratively explore eBPF optimization strategies under real execution feedback.
 % \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
-The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces to make search tractable, (3) structured semantic feedback beyond pass/fail signals, and (4) reproducible execution on real workloads.
-% 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行，(3) 超越 pass/fail 信号的结构化语义反馈，(4) 在真实工作负载上的可复现执行。
+The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
+% 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
 
 \paragraph{Architecture.}
 Figure~\ref{fig:arch} shows the closed loop: LLM agents select optimization strategies across three layers (source restructuring, LLVM backend tuning, and kernel JIT lowering), the framework packages applications into Docker images and deploys to KVM or AWS for isolated execution, and structured feedback flows back to guide the next iteration.
@@ -171,13 +171,11 @@ The first benchmark track focuses on live bytecode optimization: pass list selec
 \label{fig:arch}
 \end{figure}
 
-\paragraph{Action space.}
-\sys defines a hierarchy of action granularity from coarse to fine: A0 (no-op) leaves all programs unchanged as baseline, A1 (suite-wide) applies a fixed pass list uniformly, A2 (per-app) varies policy by application, and A3 (per-program) targets individual programs such as those with high run counts.
-% \sys 定义了从粗到细的动作粒度层次：A0（无操作）将所有程序保持不变作为基线，A1（套件级）统一应用固定的 pass 列表，A2（应用级）按应用变化策略，A3（程序级）针对单个程序如高运行次数的程序。
-Higher levels A4 (per-site) and A5 (profile-guided) control individual transformation sites using PMU data.
-% 更高级别 A4（站点级）和 A5（profile 引导）使用 PMU 数据控制单个变换站点。
-The first benchmark track targets A1--A3; higher levels require stable per-site reporting infrastructure.
-% 第一个 benchmark track 针对 A1--A3；更高级别需要稳定的逐站点报告基础设施。
+\paragraph{Iteration.}
+Each iteration follows a closed loop: agents submit an optimization configuration (pass list and per-program policies), the framework executes it under budget constraints (iteration count, wall-clock time, tokens), and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters or workload metrics.
+% 每次迭代遵循闭环：agents 提交优化配置（pass 列表和逐程序策略），框架在预算约束（迭代次数、挂钟时间、token）下执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
+The framework persists all session history for cross-iteration learning, and enforces integrity constraints to prevent reward hacking—agents cannot reduce workload duration, filter programs from measurement, or fabricate results.
+% 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束以防止奖励作弊——agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
 
 \section{Benchmark Design}
 
