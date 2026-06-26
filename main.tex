@@ -38,11 +38,11 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Optimizing these programs is hard because the search space spans multiple layers including source code, LLVM backend, and kernel JIT, static analysis cannot predict performance, and the same pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
+Yet, optimizing these programs is hard because the search space spans multiple layers including source code, LLVM backend, and kernel JIT. Static analysis cannot predict performance, and the same pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
 % 优化这些程序很难，因为搜索空间跨越多层（源码、LLVM 后端、内核 JIT），静态分析无法预测性能，同一个 pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
-This makes eBPF optimization an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
-% 这使得 eBPF 优化成为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
-We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline.
+We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic feedback, cross-domain knowledge, and adaptive strategies to outperform traditional methods.
+% 我们将 eBPF 优化框定为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来超越传统方法。
+We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline and exploration history.
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
