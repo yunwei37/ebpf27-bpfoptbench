@@ -19,7 +19,7 @@ source_data = [('Cilium', 15), ('Katran', 12), ('Tetragon', 12), ('BCC', 12)]
 llvm_data = [('OTEL', 34), ('Katran', 12)]
 kernel_data = [('Tetragon', 17), ('Cilium', 15), ('Tracee', 7), ('BCC', 4)]
 
-fig, ax = plt.subplots(figsize=(6, 2.8))
+fig, ax = plt.subplots(figsize=(6, 2.33))
 
 width = 0.28
 used_apps = set()
