@@ -46,10 +46,8 @@ We present \sys, the first eBPF optimization auto-research framework, enabling s
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
-Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%.
-% 在 2,874 个 session 的 agent 引导探索中发现，逐程序调优是必要的，因为同一个 pass 让某些程序加速 1.9 倍，却让另一些程序减速 14%。
-The tuned kinsn policy achieves 6\% speedup on x86 and 21\% speedup on ARM64 micro benchmarks.
-% 调优后的 kinsn 策略在 x86 上达到 6% 加速，在 ARM64 微基准上达到 21% 加速。
+Agent-guided exploration across 2,874 sessions discovered that per-program tuning is essential, as the same pass speeds up some programs by 1.9$\times$ while slowing others by 14\%, and the tuned kinsn policy achieves 6\% speedup on x86 and 21\% on ARM64 micro benchmarks.
+% 在 2,874 个 session 的 agent 引导探索中发现，逐程序调优是必要的，因为同一个 pass 让某些程序加速 1.9 倍却让另一些减速 14%，而调优后的 kinsn 策略在 x86 上达到 6% 加速、在 ARM64 微基准上达到 21%。
 \end{abstract}
 
 \maketitle
@@ -182,29 +180,29 @@ The framework persists all session history for cross-iteration learning, and enf
 
 \section{Benchmark Design}
 
-\paragraph{Goals.}
-The benchmark evaluates agent actions with three goals: (1) production coverage through 6 real applications with 146 programs and 42 micro benchmarks, (2) hack detection through hidden correctness checks, and (3) fair comparison through baseline measurements.
-% benchmark 用三个目标评估 agent 动作：(1) 通过 6 个真实应用的 146 个程序和 42 个微基准实现生产覆盖，(2) 通过隐藏的正确性检查执行作弊检测，(3) 通过基线测量实现公平比较。
-
 \paragraph{Workloads.}
-The benchmark covers Cilium (CNI networking), Tetragon (security observability), Tracee (runtime security), Katran (load balancing), BCC (tracing tools), and OTEL (continuous profiling).
-% benchmark 涵盖 Cilium（CNI 网络）、Tetragon（安全可观测性）、Tracee（运行时安全）、Katran（负载均衡）、BCC（追踪工具）和 OTEL（持续 profiling）。
-Each task specifies a subject (application, workload, architecture), action space (optimization layer and granularity), budget (attempts, wall-clock time, tokens), and feedback (verifier logs, JIT size, per-program \texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta}), and production applications with representative workloads ensure results transfer to real deployments.
-% 每个任务指定主体（应用、工作负载、架构）、动作空间（优化层和粒度）、预算（尝试次数、挂钟时间、token）和反馈（verifier 日志、JIT 大小、每程序 run_cnt_delta 和 run_time_ns_delta），使用代表性工作负载的生产应用确保结果能迁移到真实部署。
+The benchmark covers 6 production applications spanning networking (Cilium, Katran), security (Tetragon, Tracee), and observability (BCC, OTEL), with 146 BPF programs total.
+% benchmark 涵盖 6 个生产应用，覆盖网络（Cilium, Katran）、安全（Tetragon, Tracee）和可观测性（BCC, OTEL），共 146 个 BPF 程序。
+Additionally, 42 microbenchmarks isolate pure-bytecode execution cost and helper/map access patterns under controlled \texttt{BPF\_PROG\_TEST\_RUN} workloads.
+% 另有 42 个微基准在受控的 BPF\_PROG\_TEST\_RUN 工作负载下隔离纯字节码执行成本和 helper/map 访问模式。
+Each application runs its standard workload under the original upstream binary, so results reflect real deployment conditions rather than synthetic test harnesses.
+% 每个应用使用原始上游二进制运行标准工作负载，因此结果反映真实部署条件而非合成测试框架。
 
-\paragraph{Evaluation and metrics.}
-A candidate succeeds only if it passes all evaluation gates, including verifier acceptance, application lifecycle completion, application-specific semantic checks, and performance improvement beyond the noise threshold.
-% 候选者只有通过所有评估门才能成功，包括 verifier 接受、应用生命周期完成、应用特定语义检查、以及超过噪声阈值的性能提升。
-Forbidden actions include reducing workload duration, modifying inputs/outputs, filtering programs from measurement, hiding ReJIT failures, replacing loaders, and fabricating results.
-% 禁止的动作包括减少工作负载时长、修改输入/输出、从测量中过滤程序、隐藏 ReJIT 失败、替换 loader、伪造结果。
-\sys reports validity rate, workload success rate, performance success rate, geomean ratio (per-program geometric mean of post/baseline), regret (gap to best-known action), cost (attempts, time, tokens), and integrity failure rate.
-% \sys 报告有效率、工作负载成功率、性能成功率、geomean 比率（后/基线的每程序几何平均）、regret（与最优已知动作的差距）、成本（尝试次数、时间、token）和完整性失败率。
+\paragraph{Metrics.}
+The benchmark measures both BPF-level and application-level impact.
+% benchmark 同时测量 BPF 级和应用级影响。
+BPF counters report per-program \texttt{run\_cnt\_delta} and \texttt{run\_time\_ns\_delta} between baseline and post-optimization phases, enabling per-program speedup analysis.
+% BPF 计数器报告基线和优化后阶段之间的每程序 run\_cnt\_delta 和 run\_time\_ns\_delta，支持每程序加速分析。
+Application metrics capture workload throughput with BPF stats disabled to avoid measurement overhead.
+% 应用指标在禁用 BPF 统计的情况下捕获工作负载吞吐量以避免测量开销。
+Runs use x86 KVM and arm64 AWS to expose architecture-dependent effects.
+% 运行使用 x86 KVM 和 arm64 AWS 以暴露架构相关效应。
 
 \section{Preliminary Evaluation}
 
 \paragraph{Exploration scale.}
-LLM agents (Claude Code and Codex) drove 2,874 benchmark sessions exploring 25 unique pass configurations across 6 production applications, producing 1,651 automated commits; Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries annotated.
-% LLM agents（Claude Code 和 Codex）驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种唯一的 pass 配置，产生了 1,651 个自动化 commits；图 2 展示了标注关键发现的探索时间线。
+LLM agents drove 2,874 benchmark sessions exploring 25 pass configurations across 6 production applications. Figure~\ref{fig:timeline} shows the exploration timeline with key discoveries annotated.
+% LLM agents 驱动了 2,874 个 benchmark session，在 6 个生产应用中探索了 25 种 pass 配置。图 2 展示了标注关键发现的探索时间线。
 
 \paragraph{Kinsn optimization results.}
 The agent-guided exploration converged on kinsn (kernel instruction lowering) as the most effective optimization family, applying 305,449 transformation sites. On x86 the tuned policy achieves 0.94$\times$ BPF runtime (6\% speedup) across 6 apps, and on ARM64 micro benchmarks kinsn achieves 1.21$\times$ speedup with 24 wins out of 29 benchmarks (Table~\ref{tab:results}).
