@@ -38,7 +38,7 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Yet, optimizing these programs is hard because the the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state. 
+Yet, optimizing these programs is hard because the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state. 
 % 优化这些程序很难，因为空间跨越多层（源码、LLVM 后端、内核 JIT）.
 Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
 % 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
@@ -73,16 +73,16 @@ Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie
 
 \section{Motivation}
 
-Yet, eBPF optimization faces unique challenges.
-% eBPF 优化面临 GPU kernel 优化中不存在的挑战。
-First, eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
-% 首先，多阶段管线（source→LLVM→verifier→JIT）产生跨层回退：一个阶段有益的优化可能在另一阶段有害，同一 pass 加速一个程序却减速另一个（表 1）。
-Second, the mandatory verifier constrains the optimization space: semantically correct transformations may be rejected if they break verifier-visible invariants.
-% 其次，强制的 verifier 约束优化空间：语义正确的变换如果破坏 verifier 可见的不变量可能被拒绝。
-Third, effects depend on kernel version and runtime state (loaded maps, BTF types), so optimizations must be validated on the target environment.
-% 第三，效果依赖内核版本和运行时状态（已加载的 map、BTF 类型），因此优化必须在目标环境上验证。
-Static analysis cannot predict what works; the only trustworthy signal comes from execution on the target.
-% 静态分析无法预测什么有效；唯一可信的信号来自目标环境的执行。
+eBPF optimization faces unique challenges.
+% eBPF 优化面临独特挑战。
+eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
+% eBPF 程序跨越多个优化层，从源码重构、LLVM 后端调优到内核 JIT 降级，每层都有架构特定的选择。一个层有益的优化可能在另一层有害，同一 pass 加速一个程序却减速另一个（表 1）。
+The verifier further constrains the optimization space, and semantically correct transformations may be rejected if they break verifier-visible invariants.
+% verifier 进一步约束优化空间，语义正确的变换如果破坏 verifier 可见的不变量可能被拒绝。
+Effects also depend on kernel version and runtime state such as loaded maps and BTF types, so optimizations must be validated on the target environment.
+% 效果还依赖内核版本和运行时状态（如已加载的 map 和 BTF 类型），因此优化必须在目标环境上验证。
+Static analysis cannot predict what works, so the only trustworthy signal comes from execution on the target.
+% 静态分析无法预测什么有效，因此唯一可信的信号来自目标环境的执行。
 
 Existing tools take fixed approaches. K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
 % 现有工具采用固定方法。K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
@@ -119,7 +119,7 @@ ARM64 & bulk\_memory & 0.93$\times$ (7\% slower) \\
 
 \sys enables agents to iteratively explore eBPF optimization strategies under real execution feedback.
 % \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
-The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
+The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints. The framework allow adding new eBPF application and optimize them based on 
 % 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
 
 % \paragraph{Architecture.}
