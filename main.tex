@@ -185,7 +185,7 @@ The framework captures information across all layers into exploration context, f
 % \label{fig:arch}
 % \end{figure}
 
-\begin{figure}[t]
+\begin{figure}[!t]
 \centering
 \begin{tikzpicture}[
   bigbox/.style={draw, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm},
@@ -270,8 +270,8 @@ At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotat
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{timeline.pdf}
-\caption{Exploration timeline (374 runs, May--Jun 2026). Early micro runs show high variance; corpus apps stabilize over time.}
-% 图：探索时间线（374 runs，2026年5-6月）。早期 micro 运行方差大；corpus apps 随时间稳定。
+\caption{Exploration timeline (374 runs, May--Jun 2026).}
+% 图：探索时间线（374 runs，2026年5-6月）。
 \Description{Timeline scatter plot of benchmark sessions.}
 \label{fig:timeline}
 \end{figure}
@@ -279,8 +279,8 @@ At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotat
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{layers.pdf}
-\caption{Best results per layer. Apps are color-coded; the same app may benefit from multiple layers.}
-% 图：每层最佳结果。Apps 按颜色区分；同一 app 可从多层受益。
+\caption{Best results per layer. The same app may benefit from multiple layers.}
+% 图：每层最佳结果。同一 app 可从多层受益。
 \label{fig:layers}
 \Description{Bar chart showing best optimization results per layer.}
 \end{figure}
