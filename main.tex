@@ -29,14 +29,14 @@
 
 \begin{document}
 
-\title{\sys: An Auto-Research Framework and Benchmark for Agentic Kernel Extension Optimization}
+\title{\sys: Auto-Research for Agentic OS Kernel Extension Optimization}
 
-\author{Anonymous Authors}
-\affiliation{\institution{Anonymous Institution}}
-\renewcommand{\shortauthors}{Anonymous}
+% \author{Anonymous Authors}
+% \affiliation{\institution{Anonymous Institution}}
+% \renewcommand{\shortauthors}{Anonymous}
 
 \begin{abstract}
-Kernel extensions such as eBPF are widely deployed on performance-critical paths.
+OS kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
 Yet, optimizing these programs is hard because the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state.
 % 优化这些程序很难，因为 verifier 约束优化空间，该空间跨越多层（源码、LLVM 后端、内核 JIT），且优化效果依赖内核版本和运行时状态。
@@ -66,7 +66,7 @@ Each stage offers optimization opportunities, including source-level restructuri
 % 每个阶段都提供优化机会，包括源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
 
 \paragraph{LLM agents and auto-research frameworks.}
-LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2024,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025}.
+LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2024,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025,aiscientistv2,autoresearchvision,aiscientistsurvey,evoscientist,mlrcopilot,agentrxiv,researchgym}.
 % LLM agents 通过工具调用来推理任务并执行动作，自动研究框架将这一范式扩展到自主实验。
 Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie2024}, loop scheduling~\cite{compilot2025,awarecompiler2025}, and GPU kernel generation~\cite{kernelbench2025,gso2025}.
 % 最近的工作已将这些框架应用于 C++ 算法优化、循环调度和 GPU kernel 生成。
@@ -227,6 +227,10 @@ Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex20
 Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
 % 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
+Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
+% 在所有 session 中，程序级测量显示 2,487 次改进和 3,197 次回归。verifier 安全拒绝了 2,299 次变换，约 30 次 kernel crash 在 KVM 中被隔离。
+Our evaluation shows that \sys helps discover performance improvements and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
+% 我们的评估表明，\sys 通过迭代探索和跨层上下文帮助发现性能改进并隔离崩溃，克服导致许多优化尝试回归或验证失败的复杂性。
 
 
 \begin{figure}[t]
