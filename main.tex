@@ -179,8 +179,8 @@ The framework captures information across all layers into exploration context, f
 \centering
 \begin{tikzpicture}[
   bigbox/.style={draw, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm},
-  layer/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
-  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
+  layer/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=0.8cm},
+  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.4cm, minimum width=1.4cm, fill=white},
   label/.style={font=\normalsize\bfseries},
   arrowlabel/.style={font=\small},
   arrow/.style={-Latex, thick}
@@ -190,13 +190,13 @@ The framework captures information across all layers into exploration context, f
 \node[bigbox, fill=blue!10] (agent) at (1.8,0) {LLM Agent};
 
 % Framework layer
-\node[layer, fill=orange!10] (framework) at (0,-1.6) {};
+\node[layer, fill=orange!10] (framework) at (0,-1.3) {};
 \node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
 \node[smallbox] at (framework.center) (llvm) {LLVM};
 \node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
 
 % Execution layer
-\node[layer, fill=green!10] (exec) at (0,-3.2) {};
+\node[layer, fill=green!10] (exec) at (0,-2.7) {};
 \node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
 \node[smallbox] at (exec.center) (kvm) {KVM};
 \node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
@@ -235,10 +235,16 @@ BPF counters report per-program run count and latency in nano-seconds between ba
 % BPF 计数器报告基线和优化后阶段之间的每程序 run\_cnt\_delta 和 run\_time\_ns\_delta，支持每程序加速分析。
 Application metrics capture workload throughput with BPF stats disabled to avoid measurement overhead.
 % 应用指标在禁用 BPF 统计的情况下捕获工作负载吞吐量以避免测量开销。
-Runs use x86 KVM and arm64 AWS to expose architecture-dependent effects.
-% 运行使用 x86 KVM 和 arm64 AWS 以暴露架构相关效应。
 
 \section{Preliminary Evaluation}
+
+\paragraph{Agent exploration process.}
+Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small with Kernel 7.0, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design (10.7K lines of Python) and triggering exploration, while optimization algorithm design was fully autonomous.
+% 使用 Claude Code 和 Codex 在 x86 KVM (8 vCPUs, 64GB) 和 ARM64 AWS t4g.small 上，LLM agents 在 7 周内（2026年5月6日-6月26日）自主驱动了 2,640 个 benchmark session，消耗 445M + 531M tokens，平均每 session 7h（最长 19h），人工参与仅限于框架设计和触发探索，算法设计全程无人工指导。
+Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
+% 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
+% 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
+Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
 
 \paragraph{Multi-layer optimization results.}
 Figure~\ref{fig:layers} shows agent-discovered optimizations.
@@ -250,23 +256,6 @@ At the LLVM layer, agent design passes that replace map lookups with inlined val
 At the kernel JIT layer, Kops~\cite{kops2026} passes emits x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
 % 在内核 JIT 层，Kops kinsn passes 将多指令 BPF 模式替换为单条原生操作：rotate 生成 x86 RORX 用于位旋转，bulk_memory 生成 REP MOVSB 用于内存拷贝，cond_select 生成 CMOV 用于无分支条件，产生 Tetragon 的 +17% JIT 层收益。
 
-\paragraph{Agent exploration process.}
-Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design (10.7K lines of Python) and triggering exploration, while optimization algorithm design was fully autonomous.
-% 使用 Claude Code 和 Codex 在 x86 KVM (8 vCPUs, 64GB) 和 ARM64 AWS t4g.small 上，LLM agents 在 7 周内（2026年5月6日-6月26日）自主驱动了 2,640 个 benchmark session，消耗 445M + 531M tokens，平均每 session 7h（最长 19h），人工参与仅限于框架设计和触发探索，算法设计全程无人工指导。
-Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
-% 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
-% 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
-Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
-
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{layers.pdf}
-\caption{Best results per layer. Apps are color-coded; the same app may benefit from multiple layers.}
-% 图：每层最佳结果。Apps 按颜色区分；同一 app 可从多层受益。
-\label{fig:layers}
-\Description{Bar chart showing best optimization results per layer.}
-\end{figure}
 
 \begin{figure}[t]
 \centering
@@ -275,6 +264,15 @@ Across all sessions, program-level measurements show 2,487 improvements and 3,19
 % 图：探索时间线（374 runs，2026年5-6月）。早期 micro 运行方差大；corpus apps 随时间稳定。
 \Description{Timeline scatter plot of benchmark sessions.}
 \label{fig:timeline}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{layers.pdf}
+\caption{Best results per layer. Apps are color-coded; the same app may benefit from multiple layers.}
+% 图：每层最佳结果。Apps 按颜色区分；同一 app 可从多层受益。
+\label{fig:layers}
+\Description{Bar chart showing best optimization results per layer.}
 \end{figure}
 
 \begin{figure}[t]
