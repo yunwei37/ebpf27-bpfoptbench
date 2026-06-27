@@ -176,10 +176,39 @@ The framework captures information across all layers into exploration context, f
 % \end{figure}
 
 \begin{figure}[t]
-    \centering
-    \includegraphics[width=\columnwidth]{figures/figure-1.pdf}
-    \caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
-    \label{fig:arch}
+\centering
+\begin{tikzpicture}[
+  bigbox/.style={draw, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm},
+  layer/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
+  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
+  label/.style={font=\normalsize\bfseries},
+  arrowlabel/.style={font=\small},
+  arrow/.style={-Latex, thick}
+]
+% Top layer - two boxes side by side
+\node[bigbox, fill=blue!10, minimum width=3cm] (apps) at (-1.6,0) {Apps + Workloads};
+\node[bigbox, fill=blue!10] (agent) at (1.8,0) {LLM Agent};
+
+% Framework layer
+\node[layer, fill=orange!10] (framework) at (0,-1.6) {};
+\node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
+\node[smallbox] at (framework.center) (llvm) {LLVM};
+\node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
+
+% Execution layer
+\node[layer, fill=green!10] (exec) at (0,-3.2) {};
+\node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
+\node[smallbox] at (exec.center) (kvm) {KVM};
+\node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
+
+% Arrows
+\draw[arrow] (apps.south) -- node[left, arrowlabel] {target} (apps.south |- framework.north);
+\draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (agent.south |- framework.north);
+\draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
+\draw[arrow] (exec.east) -- ++(0.5,0) |- node[right, arrowlabel, pos=0.25] {feedback} (agent.east);
+\end{tikzpicture}
+\caption{\sys closed loop: agents select optimization strategies, the framework deploys apps and workloads to isolated execution, and feedback guides iteration.}
+\label{fig:arch}
 \end{figure}
 
 % \paragraph{Process.}
