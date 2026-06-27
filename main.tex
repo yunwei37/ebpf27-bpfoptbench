@@ -77,8 +77,8 @@ eBPF optimization faces unique challenges.
 % eBPF 优化面临独特挑战。
 eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
 % eBPF 程序跨越多个优化层，从源码重构、LLVM 后端调优到内核 JIT 降级，每层都有架构特定的选择。一个层有益的优化可能在另一层有害，同一 pass 加速一个程序却减速另一个（表 1）。
-The verifier further constrains the optimization space, and semantically correct transformations may be rejected if they break verifier-visible invariants.
-% verifier 进一步约束优化空间，语义正确的变换如果破坏 verifier 可见的不变量可能被拒绝。
+The verifier further constrains the optimization space, and semantically correct transformations may be rejected.
+% verifier 进一步约束优化空间，语义正确的变换可能被拒绝。
 Effects also depend on kernel version and runtime state such as loaded maps and BTF types, so optimizations must be validated on the target environment.
 % 效果还依赖内核版本和运行时状态（如已加载的 map 和 BTF 类型），因此优化必须在目标环境上验证。
 Static analysis cannot predict what works, so the only trustworthy signal comes from execution on the target.
@@ -119,8 +119,10 @@ ARM64 & bulk\_memory & 0.93$\times$ (7\% slower) \\
 
 \sys enables agents to iteratively explore eBPF optimization strategies under real execution feedback.
 % \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
-The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints. The framework allow adding new eBPF application and optimize them based on 
+The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
 % 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
+The framework allows adding new eBPF applications. Users provide the application source or binary, workload script, and expected correctness properties, and the framework optimizes toward target workloads, architecture, and kernel version, while previous work mainly focuses on general algorithms.
+% 框架允许添加新的 eBPF 应用。用户提供应用源码或二进制、工作负载脚本和预期正确性属性，框架针对目标工作负载、架构和内核版本进行优化，而先前工作主要关注通用算法。
 
 % \paragraph{Architecture.}
 Figure~\ref{fig:arch} shows the three-layer system architecture.
