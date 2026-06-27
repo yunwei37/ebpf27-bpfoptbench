@@ -117,8 +117,8 @@ ARM64 & bulk\_memory & 0.93$\times$ (7\% slower) \\
 
 \section{Framework Design}
 
-\sys enables agents to iteratively explore eBPF optimization strategies under real execution feedback.
-% \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
+\sys enables agents to iteratively explore eBPF optimization strategies under real execution.
+% \sys 使 agents 能够在真实执行下迭代探索 eBPF 优化策略。
 The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
 % 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
 
