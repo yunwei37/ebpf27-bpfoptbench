@@ -121,12 +121,13 @@ ARM64 & bulk\_memory & 0.93$\times$ (7\% slower) \\
 % \sys 使 agents 能够在真实执行反馈下迭代探索 eBPF 优化策略。
 The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
 % 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
-The framework allows adding new eBPF applications. Users provide the application source or binary, workload script, and expected correctness properties, and the framework optimizes toward target workloads, architecture, and kernel version, while previous work mainly focuses on general algorithms.
-% 框架允许添加新的 eBPF 应用。用户提供应用源码或二进制、工作负载脚本和预期正确性属性，框架针对目标工作负载、架构和内核版本进行优化，而先前工作主要关注通用算法。
+
 
 % \paragraph{Architecture.}
 Figure~\ref{fig:arch} shows the three-layer system architecture.
 % 图 1 展示了三层系统架构。
+Users provide the application source or binary, workload script, and expected correctness properties, and the framework optimizes toward target workloads, architecture, and kernel version, while previous work mainly focuses on general algorithms.
+% 用户提供应用源码或二进制、工作负载脚本和预期正确性属性，框架针对目标工作负载、架构和内核版本进行优化，而先前工作主要关注通用算法。
 Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and exploration context guides the next iteration.
 % agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，探索上下文指导下一次迭代。
 Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to safely extend the eBPF JIT with native operations.
@@ -246,7 +247,7 @@ Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{f
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
 Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
 
-\paragraph{Multi-layer optimization results.}
+\paragraph{Optimization results.}
 Figure~\ref{fig:layers} shows agent-discovered optimizations.
 % 图展示了每层的最佳逐应用结果。
 At the source layer, agents discovered application-specific optimizations like caching VIP metadata to avoid redundant map lookups, and lazily computing selector state and skipping empty selector loops.
