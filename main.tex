@@ -38,11 +38,13 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Yet, optimizing these programs is hard because the space spans multiple layers including source code, LLVM backend, and kernel JIT. Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
-% 优化这些程序很难，因为空间跨越多层（源码、LLVM 后端、内核 JIT），静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
+Yet, optimizing these programs is hard because the the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state. 
+% 优化这些程序很难，因为空间跨越多层（源码、LLVM 后端、内核 JIT）.
+Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
+% 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
 We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance.
 % 我们将 eBPF 优化框定为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来改进性能。
-We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured feedback across the compilation pipeline and exploration history.
+We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured analysis across the compilation pipeline and exploration history.
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线和探索历史的结构化反馈。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
@@ -71,14 +73,16 @@ Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie
 
 \section{Motivation}
 
-eBPF optimization is hard because eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices.
-% 因为 eBPF 程序跨越多个优化层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，每层都有架构特定的选择。
-Static analysis cannot predict performance because bytecode size does not predict JIT output, JIT size does not predict runtime, and microbenchmark gains may not transfer to real workloads.
-% 静态分析无法预测性能，因为字节码大小无法预测 JIT 输出，JIT 大小无法预测运行时，微基准的收益可能无法迁移到真实工作负载。
-Context determines effects, so a transformation profitable on x86 may regress on arm64, and the same pass that speeds up one program slows down another.
-% 上下文决定效果，因此在 x86 上有收益的变换可能在 arm64 上回退，同一个 pass 加速一个程序却减速另一个。
-Table~\ref{tab:motivation} shows this concretely, as a single pass can speed up one program by 1.9$\times$ while slowing another by 14\%, so the only trustworthy signal comes from execution.
-% 表 1 具体展示了这一点，同一个 pass 可以让一个程序加速 1.9 倍，却让另一个程序减速 14%，因此唯一可信的信号来自执行。
+Yet, eBPF optimization faces unique challenges.
+% eBPF 优化面临 GPU kernel 优化中不存在的挑战。
+First, eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
+% 首先，多阶段管线（source→LLVM→verifier→JIT）产生跨层回退：一个阶段有益的优化可能在另一阶段有害，同一 pass 加速一个程序却减速另一个（表 1）。
+Second, the mandatory verifier constrains the optimization space: semantically correct transformations may be rejected if they break verifier-visible invariants.
+% 其次，强制的 verifier 约束优化空间：语义正确的变换如果破坏 verifier 可见的不变量可能被拒绝。
+Third, effects depend on kernel version and runtime state (loaded maps, BTF types), so optimizations must be validated on the target environment.
+% 第三，效果依赖内核版本和运行时状态（已加载的 map、BTF 类型），因此优化必须在目标环境上验证。
+Static analysis cannot predict what works; the only trustworthy signal comes from execution on the target.
+% 静态分析无法预测什么有效；唯一可信的信号来自目标环境的执行。
 
 Existing tools take fixed approaches. K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
 % 现有工具采用固定方法。K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
