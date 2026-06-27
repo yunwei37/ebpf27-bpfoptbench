@@ -50,7 +50,7 @@ for i, (app, val) in enumerate(kernel_data):
 
 ax.set_ylabel('Improvement (%)', fontsize=14)
 ax.set_xticks([0.28, 1.34, 2.68])
-ax.set_xticklabels(['Source', 'LLVM', 'Kernel JIT'], fontsize=14)
+ax.set_xticklabels(['Source', 'LLVM', 'Kernel'], fontsize=14)
 ax.tick_params(axis='y', labelsize=13)
 ax.set_ylim(0, 48)
 ax.legend(loc='upper right', fontsize=12, ncol=2)
