@@ -38,8 +38,8 @@
 \begin{abstract}
 Kernel extensions such as eBPF are widely deployed on performance-critical paths.
 % eBPF 等内核扩展被广泛部署在性能关键路径上。
-Yet, optimizing these programs is hard because the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state. 
-% 优化这些程序很难，因为空间跨越多层（源码、LLVM 后端、内核 JIT）.
+Yet, optimizing these programs is hard because the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state.
+% 优化这些程序很难，因为 verifier 约束优化空间，该空间跨越多层（源码、LLVM 后端、内核 JIT），且优化效果依赖内核版本和运行时状态。
 Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
 % 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
 We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance.
@@ -196,8 +196,8 @@ Networking apps (Cilium, Katran) use kernel pktgen~\cite{pktgen} to stress the d
 % 网络应用（Cilium, Katran）使用内核 pktgen 压测数据路径，安全和追踪应用（Tetragon, Tracee, BCC）使用 stress-ng 生成高频系统调用负载，OTEL 使用解释器哈希循环进行持续 profiling。
 Additionally, 42 microbenchmarks isolate pure-bytecode execution and helper/map access under \texttt{BPF\_PROG\_TEST\_RUN}.
 % 另有 42 个微基准在 BPF\_PROG\_TEST\_RUN 下隔离纯字节码执行和 helper/map 访问。
-All comes with hidden correctness unittest to prevent reward hacking.
-% 全部通过隐藏的正确性检查执行作弊检测.
+All benchmarks include hidden correctness tests to prevent reward hacking.
+% 所有 benchmark 都包含隐藏的正确性测试以防止作弊。
 
 % \paragraph{Metrics.}
 The benchmark measures both BPF-level and application-level impact.
