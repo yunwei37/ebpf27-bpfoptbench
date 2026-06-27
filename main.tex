@@ -131,8 +131,8 @@ Agents select optimization strategies, the framework executes them in Docker con
 % agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，结构化反馈指导下一次迭代。
 Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to safely extend the eBPF JIT with native operations.
 % 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 安全扩展 eBPF JIT 以支持原生操作。
-The framework supports live bytecode optimization leveraging runtime information such as loaded maps and counters.
-% 框架支持利用已加载 map 和计数器等运行时信息的运行时字节码优化。
+The framework captures structured traces across all layers, from source changes through bytecode diffs, profiling data, verifier states, and JIT output to runtime maps and counters, enabling agents to correlate effects across the pipeline and exploration history.
+% 框架捕获所有层的结构化追踪，从源码变更、字节码 diff、profiling 数据、verifier 状态、JIT 输出到运行时 map 和计数器，使 agent 能够关联 pipeline 各层的效果以及探索历史。
 
 % \begin{figure}[t]
 % \centering
