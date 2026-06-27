@@ -44,8 +44,8 @@ Static analysis cannot predict performance, and the same LLVM pass can speed up 
 % 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
 We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance.
 % 我们将 eBPF 优化框定为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来改进性能。
-We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and structured analysis across the compilation pipeline and exploration history.
-% 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线和探索历史的结构化反馈。
+We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and exploration context across the compilation pipeline, profiling data, and exploration history.
+% 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线、profiling 数据和探索历史的探索上下文。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
 Agent-guided exploration discovers optimizations at each compilation layer, with the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT, while micro benchmarks achieve 21\% speedup on both x86 and ARM64.
@@ -127,12 +127,12 @@ The framework allows adding new eBPF applications. Users provide the application
 % \paragraph{Architecture.}
 Figure~\ref{fig:arch} shows the three-layer system architecture.
 % 图 1 展示了三层系统架构。
-Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and structured feedback guides the next iteration.
-% agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，结构化反馈指导下一次迭代。
+Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and exploration context guides the next iteration.
+% agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，探索上下文指导下一次迭代。
 Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to safely extend the eBPF JIT with native operations.
 % 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 安全扩展 eBPF JIT 以支持原生操作。
-The framework captures structured traces across all layers, from source changes through bytecode diffs, profiling data, verifier states, and JIT output to runtime maps and counters, enabling agents to correlate effects across the pipeline and exploration history.
-% 框架捕获所有层的结构化追踪，从源码变更、字节码 diff、profiling 数据、verifier 状态、JIT 输出到运行时 map 和计数器，使 agent 能够关联 pipeline 各层的效果以及探索历史。
+The framework captures information across all layers into exploration context, from source changes through bytecode diffs, profiling data, verifier states, and JIT output to runtime maps and counters, enabling agents to correlate effects across the pipeline and history.
+% 框架捕获所有层的信息到探索上下文，从源码变更、字节码 diff、profiling 数据、verifier 状态、JIT 输出到运行时 map 和计数器，使 agent 能够关联 pipeline 各层的效果以及历史。
 
 % \begin{figure}[t]
 % \centering
@@ -183,8 +183,8 @@ The framework captures structured traces across all layers, from source changes 
 \end{figure}
 
 % \paragraph{Process.}
-Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns structured feedback including verifier logs, JIT output size, and per-program runtime counters.
-% 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回包括 verifier 日志、JIT 输出大小和每程序运行时计数器的结构化反馈。
+Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns data including verifier logs, JIT output size, and per-program runtime counters.
+% 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回数据，包括 verifier 日志、JIT 输出大小和每程序运行时计数器。
 The framework persists all session history for cross-iteration learning, and enforces integrity constraints via OS-level policy~\cite{actplane2026}: agents interact only through \texttt{make} targets and cannot modify benchmark code, reduce workload duration, or fabricate results. 
 % 框架持久化所有 session 历史以支持跨迭代学习，并强制执行完整性约束使得 agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
 
