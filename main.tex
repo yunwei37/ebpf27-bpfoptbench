@@ -231,7 +231,7 @@ All benchmarks include hidden correctness tests to prevent reward hacking.
 % \paragraph{Metrics.}
 The benchmark measures both BPF-level and application-level impact.
 % benchmark 同时测量 BPF 级和应用级影响。
-BPF counters report per-program run count and latency between baseline and post-optimization phases, enabling per-program speedup analysis.
+BPF counters report per-program run count and latency (ns) between baseline and post-optimization phases, enabling per-program speedup analysis.
 % BPF 计数器报告基线和优化后阶段之间的每程序 run\_cnt\_delta 和 run\_time\_ns\_delta，支持每程序加速分析。
 Application metrics capture workload throughput with BPF stats disabled to avoid measurement overhead.
 % 应用指标在禁用 BPF 统计的情况下捕获工作负载吞吐量以避免测量开销。
