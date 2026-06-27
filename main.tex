@@ -48,7 +48,7 @@ We present \sys, the first eBPF optimization auto-research framework, enabling s
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线、profiling 数据和探索历史的探索上下文。
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
-Agent-guided exploration discovers optimizations at each compilation layer, with the best results being Cilium +12\% at source, OTEL +34\% at LLVM, and Tetragon +17\% at kernel JIT, while micro benchmarks achieve 21\% speedup on both x86 and ARM64.
+Our evaluation shows that \sys helps discover performance-improving code and algorithms with up to 34\% speedup and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
 % agent 引导的探索在每个编译层都发现了优化，最佳结果：源码层 Cilium +12%，LLVM 层 OTEL +34%，内核 JIT 层 Tetragon +17%，微基准在 x86 和 ARM64 上均达到 21% 加速。
 \end{abstract}
 
@@ -228,9 +228,6 @@ Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{f
 % 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
 % 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
 Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
-% 在所有 session 中，程序级测量显示 2,487 次改进和 3,197 次回归。verifier 安全拒绝了 2,299 次变换，约 30 次 kernel crash 在 KVM 中被隔离。
-Our evaluation shows that \sys helps discover performance improvements and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
-% 我们的评估表明，\sys 通过迭代探索和跨层上下文帮助发现性能改进并隔离崩溃，克服导致许多优化尝试回归或验证失败的复杂性。
 
 
 \begin{figure}[t]
