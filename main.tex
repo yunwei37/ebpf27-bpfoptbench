@@ -77,9 +77,9 @@ eBPF optimization faces unique challenges.
 % eBPF 优化面临独特挑战。
 eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
 % eBPF 程序跨越多个优化层，从源码重构、LLVM 后端调优到内核 JIT 降级，每层都有架构特定的选择。一个层有益的优化可能在另一层有害，同一 pass 加速一个程序却减速另一个（表 1）。
-The verifier further constrains the optimization space, and semantically correct transformations may be rejected.
+The verifier further constrains the optimization space and may reject transformations.
 % verifier 进一步约束优化空间，语义正确的变换可能被拒绝。
-Effects also depend on kernel version and runtime state such as loaded maps and BTF types, so optimizations must be validated on the target environment.
+Effects also depend on kernel version and runtime state, such as loaded maps and BTF types, so optimizations must be validated on the target environment.
 % 效果还依赖内核版本和运行时状态（如已加载的 map 和 BTF 类型），因此优化必须在目标环境上验证。
 Static analysis cannot predict what works, so the only trustworthy signal comes from execution on the target.
 % 静态分析无法预测什么有效，因此唯一可信的信号来自目标环境的执行。
@@ -215,8 +215,8 @@ The framework captures information across all layers into exploration context, f
 % \paragraph{Process.}
 Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns data including verifier logs, JIT output size, and per-program runtime counters.
 % 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回数据，包括 verifier 日志、JIT 输出大小和每程序运行时计数器。
-The framework persists all history for cross-iteration learning, and enforces integrity constraints via OS-level policy~\cite{actplane2026}: agents interact only through \texttt{make} targets and cannot modify benchmark code, reduce workload duration, or fabricate results. 
-% 框架持久化所有 历史以支持跨迭代学习，并强制执行完整性约束使得 agents 不能减少工作负载时长、从测量中过滤程序或伪造结果。
+The framework persists all history for cross-iteration learning, and enforces integrity constraints via OS-level policy~\cite{actplane2026}: agents interact only through \texttt{make} targets and cannot modify benchmark code, reduce workload duration, or fabricate results.
+% 框架持久化所有历史以支持跨迭代学习，并通过 OS 级策略强制执行完整性约束：agents 只能通过 make targets 交互，不能修改 benchmark 代码、减少工作负载时长或伪造结果。
 
 \section{Benchmark Design}
 
@@ -233,7 +233,7 @@ All benchmarks include hidden correctness tests to prevent reward hacking.
 The benchmark measures both BPF-level and application-level impact.
 % benchmark 同时测量 BPF 级和应用级影响。
 BPF counters report per-program run count and latency (ns) between baseline and post-optimization phases, enabling per-program speedup analysis.
-% BPF 计数器报告基线和优化后阶段之间的每程序 run\_cnt\_delta 和 run\_time\_ns\_delta，支持每程序加速分析。
+% BPF 计数器报告基线和优化后阶段之间的每程序运行次数和延迟（ns），支持每程序加速分析。
 Application metrics capture workload throughput with BPF stats disabled to avoid measurement overhead.
 % 应用指标在禁用 BPF 统计的情况下捕获工作负载吞吐量以避免测量开销。
 
@@ -253,9 +253,9 @@ Figure~\ref{fig:layers} shows agent-discovered optimizations.
 At the source layer, agents discovered application-specific optimizations like caching VIP metadata to avoid redundant map lookups, and lazily computing selector state and skipping empty selector loops.
 % 在源码层，agents 发现了应用特定的优化，如缓存 VIP 元数据避免重复 map 查找，延迟计算选择器状态并跳过空选择器循环。
 At the LLVM layer, agents design passes that replace map lookups with inlined values and coalesce byte-by-byte loads into 32/64-bit wide loads.
-% 在 LLVM 层，map_inline 在 key 是编译时常量时将 map 查找替换为内联值，wide_mem 将逐字节加载合并为 32/64 位宽加载，共同改进 OTEL 的解释器帧展开 34%。
-At the kernel JIT layer, Kops~\cite{kops2026} passes emits x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
-% 在内核 JIT 层，Kops kinsn passes 将多指令 BPF 模式替换为单条原生操作：rotate 生成 x86 RORX 用于位旋转，bulk_memory 生成 REP MOVSB 用于内存拷贝，cond_select 生成 CMOV 用于无分支条件，产生 Tetragon 的 +17% JIT 层收益。
+% 在 LLVM 层，agents 设计 passes 将 map 查找替换为内联值，并将逐字节加载合并为 32/64 位宽加载。
+At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
+% 在内核 JIT 层，Kops passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
 
 
 \begin{figure}[t]
