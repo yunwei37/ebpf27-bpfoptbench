@@ -49,7 +49,7 @@ We present \sys, the first eBPF optimization auto-research framework, enabling s
 We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
 Our evaluation shows that \sys helps discover performance-improving code and algorithms with up to 34\% speedup and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
-% agent 引导的探索在每个编译层都发现了优化，最佳结果：源码层 Cilium +12%，LLVM 层 OTEL +34%，内核 JIT 层 Tetragon +17%，微基准在 x86 和 ARM64 上均达到 21% 加速。
+% 我们的评估表明，\sys 帮助发现性能改进的代码和算法（最高 34% 加速）并隔离崩溃，通过迭代探索和跨层上下文克服导致许多优化尝试回归或验证失败的复杂性。
 \end{abstract}
 
 \maketitle
@@ -86,7 +86,7 @@ Static analysis cannot predict what works, so the only trustworthy signal comes 
 
 Existing tools take fixed approaches. K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
 % 现有工具采用固定方法。K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
-These approaches all search within predefined transformation spaces, but none can understand why a transformation succeeds, generalize patterns across programs, or devise new optimization strategies.
+These approaches all search within predefined transformation spaces, but none can understand why a transformation succeeds, generalize patterns across programs, or devise new optimization strategies toward deployment environments.
 % 这些方法都在预定义的变换空间内搜索，但没有一个能理解变换为何成功、跨程序归纳规律、或设计新的优化策略。
 
 \begin{table}[t]
@@ -251,8 +251,8 @@ Across all sessions, program-level measurements show 2,487 improvements and 3,19
 Figure~\ref{fig:layers} shows agent-discovered optimizations.
 % 图展示了每层的最佳逐应用结果。
 At the source layer, agents discovered application-specific optimizations like caching VIP metadata to avoid redundant map lookups, and lazily computing selector state and skipping empty selector loops.
-% 在源码层，agents 发现了应用特定的优化：Cilium (+12%) 来自给 tail_ipv4_to_endpoint() 的罕见失败路径添加 unlikely()，Katran (+9%) 来自缓存 VIP 元数据避免重复 map 查找，Tetragon (+9%) 来自延迟计算命名空间/能力选择器状态并跳过空选择器循环。
-At the LLVM layer, agent design passes that replace map lookups with inlined value, and coalesces byte-by-byte loads into 32/64-bit wide loads.
+% 在源码层，agents 发现了应用特定的优化，如缓存 VIP 元数据避免重复 map 查找，延迟计算选择器状态并跳过空选择器循环。
+At the LLVM layer, agents design passes that replace map lookups with inlined values and coalesce byte-by-byte loads into 32/64-bit wide loads.
 % 在 LLVM 层，map_inline 在 key 是编译时常量时将 map 查找替换为内联值，wide_mem 将逐字节加载合并为 32/64 位宽加载，共同改进 OTEL 的解释器帧展开 34%。
 At the kernel JIT layer, Kops~\cite{kops2026} passes emits x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
 % 在内核 JIT 层，Kops kinsn passes 将多指令 BPF 模式替换为单条原生操作：rotate 生成 x86 RORX 用于位旋转，bulk_memory 生成 REP MOVSB 用于内存拷贝，cond_select 生成 CMOV 用于无分支条件，产生 Tetragon 的 +17% JIT 层收益。
