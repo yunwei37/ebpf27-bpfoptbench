@@ -1,6 +1,7 @@
 \documentclass[sigplan,10pt,anonymous,nonacm]{acmart}
 
 \settopmatter{printfolios=true,printccs=false,printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{}
 \setcopyright{none}
 \copyrightyear{2026}
 \acmYear{2026}
@@ -26,6 +27,14 @@
 \setlength{\intextsep}{4pt}
 \setlength{\abovecaptionskip}{2pt}
 \setlength{\belowcaptionskip}{-2pt}
+
+% Reduce space before sections
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-2ex \@plus -1ex \@minus -.2ex}%
+  {1ex \@plus .2ex}%
+  {\normalfont\Large\bfseries}}
+\makeatother
 
 \begin{document}
 
