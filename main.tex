@@ -390,4 +390,61 @@ Attempt 6: Native-unwind error branch hints; result -1.4\%.
 All attempts failed; instruction reduction did not improve throughput.
 % 所有尝试都失败了；指令减少并未提升吞吐量。
 
+\subsection{LLVM Bytecode Optimization}
+% LLVM 字节码优化
+
+The agent explored bytecode-level passes that transform BPF instructions before kernel loading.
+% Agent 探索了在内核加载前变换 BPF 指令的字节码级 pass。
+
+The first discovery was pass ordering: \texttt{const\_prop} requires verifier state from \texttt{noop}, creating a mandatory pipeline \texttt{noop} $\to$ \texttt{map\_inline} $\to$ \texttt{const\_prop} $\to$ \texttt{dce}.
+% 第一个发现是 pass 顺序：const_prop 需要 noop 的 verifier 状态，创建强制管道 noop → map_inline → const_prop → dce。
+
+Running \texttt{const\_prop} first failed with missing state errors; the agent learned to always prepend \texttt{noop}.
+% 先跑 const_prop 因缺少状态而失败；agent 学会了总是先加 noop。
+
+The \texttt{map\_inline} pass showed app-dependent results: Katran achieved 12\% with 11 static map sites, OTEL achieved 34\% with 8 sites, but Tetragon only 2\% because 33\% of sites had dynamic keys and were skipped.
+% map_inline pass 显示了应用相关的结果：Katran 用 11 个静态 map 站点实现 12%，OTEL 用 8 个站点实现 34%，但 Tetragon 只有 2%，因为 33% 的站点有动态键被跳过。
+
+The agent tried \texttt{wide\_mem} to coalesce byte loads into 64-bit loads; OTEL transformed 132 sites but throughput was flat, while Tetragon triggered verifier rejection when wider loads crossed BTF field boundaries.
+% Agent 尝试 wide_mem 将字节加载合并为 64 位加载；OTEL 变换了 132 个站点但吞吐量平坦，而 Tetragon 在更宽加载跨越 BTF 字段边界时触发 verifier 拒绝。
+
+A critical failure occurred with \texttt{const\_prop} on Cilium: constant-folding pointer arithmetic broke tail-call context, causing a 31-second timeout.
+% const_prop 在 Cilium 上发生了严重失败：常量折叠指针运算破坏了 tail-call 上下文，导致 31 秒超时。
+
+The agent diagnosed this by isolating passes: \texttt{noop,wide\_mem} succeeded, \texttt{noop,dce} succeeded, but \texttt{noop,const\_prop} reproduced the failure.
+% Agent 通过隔离 pass 诊断：noop,wide_mem 成功，noop,dce 成功，但 noop,const_prop 复现了失败。
+
+This taught the agent that LLVM-level transformations must preserve verifier invariants invisible in bytecode alone.
+% 这教会了 agent：LLVM 级变换必须保留仅从字节码中不可见的 verifier 不变量。
+
+\subsection{Kernel JIT Optimization (Kops)}
+% 内核 JIT 优化 (Kops)
+
+Kops passes replace BPF bytecode sequences with kfunc calls that the kernel JIT lowers to native instructions.
+% Kops pass 将 BPF 字节码序列替换为 kfunc 调用，由内核 JIT 降级为原生指令。
+
+The agent first tested \texttt{rotate} on micro benchmarks: \texttt{siphash\_rotate64\_mixer} achieved 1.9$\times$ speedup with 348 ARM64 EXTR sites.
+% Agent 首先在微基准上测试 rotate：siphash_rotate64_mixer 用 348 个 ARM64 EXTR 站点实现了 1.9 倍加速。
+
+Encouraged, the agent applied the same pass to \texttt{bpftrace\_comm\_key\_fnv\_hash}---but it regressed 14\%, despite using identical kinsn families.
+% 受鼓舞后，agent 将相同 pass 应用于 bpftrace_comm_key_fnv_hash——但它回归了 14%，尽管使用了相同的 kinsn 系列。
+
+On Cilium production with 4,086 sites, the net effect was only 1.01$\times$---micro gains did not transfer to real workloads.
+% 在 Cilium 生产环境 4,086 个站点上，净效果仅为 1.01 倍——微基准收益没有转移到实际工作负载。
+
+The agent then explored \texttt{cond\_select}, converting branches to CMOV: \texttt{cond\_select\_dense} showed 37\% speedup, but \texttt{log2\_fold} regressed 28\%.
+% Agent 然后探索 cond_select，将分支转换为 CMOV：cond_select_dense 显示 37\% 加速，但 log2_fold 回归 28\%。
+
+Analysis revealed the difference: unpredictable branches benefit from CMOV, but predictable branches are faster with branch prediction.
+% 分析揭示了差异：不可预测分支从 CMOV 受益，但可预测分支用分支预测更快。
+
+The \texttt{bulk\_memory} pass exposed architecture dependence: x86 Cilium improved 28\% with REP MOVSB, but ARM64 Cilium regressed 6.6\% because ARM64 lacks an efficient equivalent.
+% bulk_memory pass 暴露了架构依赖：x86 Cilium 用 REP MOVSB 提升 28%，但 ARM64 Cilium 回归 6.6%，因为 ARM64 缺少高效等效指令。
+
+The agent learned to maintain per-architecture policies: enable \texttt{bulk\_memory} on x86, disable on ARM64.
+% Agent 学会了维护每架构策略：在 x86 上启用 bulk_memory，在 ARM64 上禁用。
+
+Across 29 micro benchmarks, the same kinsn policy produced outcomes ranging from 1.9$\times$ speedup to 0.86$\times$ slowdown---a 2.2$\times$ variance that proves uniform policies fail.
+% 在 29 个微基准上，相同的 kinsn 策略产生了从 1.9 倍加速到 0.86 倍减速的结果——2.2 倍方差证明统一策略失败。
+
 \end{document}
