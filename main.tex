@@ -51,7 +51,7 @@ Yet, optimizing these programs is hard because the verifier constrains the optim
 % 优化这些程序很难，因为 verifier 约束优化空间，该空间跨越多层（源码、LLVM 后端、内核 JIT），且优化效果依赖内核版本和运行时状态。
 Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
 % 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
-We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance.
+We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance and outperform traditional optimizers.
 % 我们将 eBPF 优化框定为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来改进性能。
 We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and exploration context across the compilation pipeline, profiling data, and exploration history.
 % 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线、profiling 数据和探索历史的探索上下文。
@@ -265,7 +265,8 @@ At the LLVM layer, agents design passes that replace map lookups with inlined va
 % 在 LLVM 层，agents 设计 passes 将 map 查找替换为内联值，并将逐字节加载合并为 32/64 位宽加载。
 At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
 % 在内核 JIT 层，Kops passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
-
+K2~\cite{xu2021synthesizing} produced no valid transformed bytecode across the benchmark suite since many programs exceed its search budget, and Merlin~\cite{mao2024merlin} achieved 4\% speedup on Katran at compile time, while agent-discovered source optimizations achieved 12\% (3$\times$ Merlin).
+% 在相同的 Katran 工作负载上，K2 因许多程序超出其搜索预算而未产生有效的变换字节码，Merlin 在编译时实现了 4% 加速，而 agent 发现的源码优化达到了 12%（Merlin 的 3 倍）。
 
 \begin{figure}[t]
 \centering
