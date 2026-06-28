@@ -20,7 +20,7 @@
 \usetikzlibrary{arrows.meta,positioning,decorations.pathreplacing}
 
 % commands
-\newcommand{\sys}{\textsc{BPFOptBench}\xspace}
+\newcommand{\sys}{\texttt{bpf-bench}\xspace}
 
 \setlength{\textfloatsep}{4pt}
 \setlength{\floatsep}{4pt}
@@ -59,6 +59,7 @@ We instantiate \sys as a benchmark covering 6 production applications with 146 p
 % 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
 Our evaluation shows that \sys helps discover performance-improving code and algorithms with up to 34\% speedup and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
 % 我们的评估表明，\sys 帮助发现性能改进的代码和算法（最高 34% 加速）并隔离崩溃，通过迭代探索和跨层上下文克服导致许多优化尝试回归或验证失败的复杂性。
+\sys is available at \url{https://github.com/eunomia-bpf/bpf-bench}.
 \end{abstract}
 
 \maketitle
@@ -265,8 +266,8 @@ At the LLVM layer, agents design passes that replace map lookups with inlined va
 % 在 LLVM 层，agents 设计 passes 将 map 查找替换为内联值，并将逐字节加载合并为 32/64 位宽加载。
 At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
 % 在内核 JIT 层，Kops passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
-K2~\cite{xu2021synthesizing} transformed only 3 of 740 programs with 2\% speedup, Merlin~\cite{mao2024merlin} achieved 4\% on Katran, while agent-discovered source optimizations achieved 12\%.
-% K2 仅变换了 740 个程序中的 3 个，加速 2%，Merlin 在 Katran 上实现 4%，而 agent 发现的源码优化达到 12%。
+Comparing with traditional optimizers, K2~\cite{xu2021synthesizing} transformed only 3 programs with 2\% speedup, Merlin~\cite{mao2024merlin} achieved 4\% on Katran, while agent-discovered source optimizations achieved 12\%.
+% 与传统优化器相比，K2 仅变换了 3 个程序，加速 2%，Merlin 在 Katran 上实现 4%，而 agent 发现的源码优化达到 12%。
 
 \begin{figure}[t]
 \centering
