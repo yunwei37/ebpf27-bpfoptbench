@@ -299,4 +299,95 @@ Comparing with traditional optimizers, K2~\cite{xu2021synthesizing} transformed 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}
 
+\appendix
+\section{Exploration Case Studies}
+% 附录：探索案例研究
+
+\subsection{Source-Level Optimization}
+% 源码级优化
+
+\subsubsection{Cilium (+15\%)}
+
+Attempt 1: Added \texttt{unlikely()} hints to invalid ethertype branches in \texttt{cil\_from\_container()}; result +2\%.
+% 尝试 1：在 cil_from_container() 的无效 ethertype 分支加 unlikely() 提示；结果 +2%。
+
+Attempt 2: Marked failed L3 header pull branches in \texttt{cil\_lxc\_policy()}; result +3\%.
+% 尝试 2：标记 cil_lxc_policy() 的 L3 头部拉取失败分支；结果 +3%。
+
+Attempt 3: Added hints to \texttt{cil\_to\_container()} error paths; result +4\%.
+% 尝试 3：在 cil_to_container() 错误路径加提示；结果 +4%。
+
+Attempt 4: Marked \texttt{local\_delivery()} peer-redirect condition; result +5\%.
+% 尝试 4：标记 local_delivery() 的 peer-redirect 条件；结果 +5%。
+
+Attempt 5: Marked \texttt{revalidate\_data()} checks in \texttt{tail\_ipv4\_to\_endpoint()}; result +12\%, best so far.
+% 尝试 5：标记 tail_ipv4_to_endpoint() 的 revalidate_data() 检查；结果 +12%，目前最佳。
+
+Attempt 6: Stacked all five patches together; result +8.7\%, regression vs single best.
+% 尝试 6：堆叠所有五个补丁；结果 +8.7%，反而比单独最佳更差。
+
+Attempt 7: Added \texttt{likely(ret == CTX\_ACT\_OK)} fast path; result +8.2\%, still worse.
+% 尝试 7：添加 likely(ret == CTX_ACT_OK) 快速路径；结果 +8.2%，仍然更差。
+
+Attempt 8: Marked auth/verdict/proxy branches as cold; result -0.8\%, regression below baseline.
+% 尝试 8：标记 auth/verdict/proxy 分支为 cold；结果 -0.8%，低于基线。
+
+Attempt 9: Selectively stacked attempt 3 hints onto attempt 5; result +13\%.
+% 尝试 9：选择性地将尝试 3 的提示堆叠到尝试 5 上；结果 +13%。
+
+Attempt 10: Added attempt 2 hints; result +15\%, final best.
+% 尝试 10：添加尝试 2 的提示；结果 +15%，最终最佳。
+
+\subsubsection{Tetragon (+12\%)}
+
+Attempt 1: Sparse selector active clear; result -0.6\%.
+% 尝试 1：稀疏选择器活动清除；结果 -0.6%。
+
+Attempt 2: Filter args active fastpath; result -0.8\%.
+% 尝试 2：过滤参数活动快速路径；结果 -0.8%。
+
+Attempt 3: Lazy namespace/capability selector state; result +8\%, breakthrough.
+% 尝试 3：延迟命名空间/能力选择器状态；结果 +8%，突破。
+
+Attempt 4: Stacked attempt 3 with conditional namespace; result +7.7\%, regression.
+% 尝试 4：将尝试 3 与条件命名空间堆叠；结果 +7.7%，回归。
+
+Attempt 5: Added skip empty namespace loop; result +8.6\%.
+% 尝试 5：添加跳过空命名空间循环；结果 +8.6%。
+
+Attempt 6: Added tracepoint nop\_ty arg fast path; result +9.1\%.
+% 尝试 6：添加 tracepoint nop_ty 参数快速路径；结果 +9.1%。
+
+Attempt 7: Deferred selector-specific active clear; result +9.0\%, not stacked.
+% 尝试 7：延迟选择器特定的活动清除；结果 +9.0%，未堆叠。
+
+Attempt 8: Load-time no-selector \texttt{event\_config.flags} bit; result +12\%, reached target.
+% 尝试 8：加载时无选择器 event_config.flags 位；结果 +12%，达到目标。
+
+Attempt 9: Deferred \texttt{sel.pass} store; result +9.4\%, regression.
+% 尝试 9：延迟 sel.pass 存储；结果 +9.4%，回归。
+
+\subsubsection{OTEL (0\%)}
+
+Attempt 1: Direct \texttt{send\_trace()} size calculation; result -0.05\%.
+% 尝试 1：直接 send_trace() 大小计算；结果 -0.05%。
+
+Attempt 2: Removed repeated per-CPU lookups; result -1.5\%.
+% 尝试 2：移除重复的 per-CPU 查找；结果 -1.5%。
+
+Attempt 3: Larger native unwinder body; result -0.2\%.
+% 尝试 3：更大的原生 unwinder 函数体；结果 -0.2%。
+
+Attempt 4: Lazy custom-label clearing; result -0.8\%.
+% 尝试 4：延迟自定义标签清除；结果 -0.8%。
+
+Attempt 5: Batched PHP metrics, 6899$\to$3358 instructions; result -0.7\%.
+% 尝试 5：批量 PHP 指标，6899→3358 条指令；结果 -0.7%。
+
+Attempt 6: Native-unwind error branch hints; result -1.4\%.
+% 尝试 6：原生 unwind 错误分支提示；结果 -1.4%。
+
+All attempts failed; instruction reduction did not improve throughput.
+% 所有尝试都失败了；指令减少并未提升吞吐量。
+
 \end{document}
