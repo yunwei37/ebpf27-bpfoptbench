@@ -306,145 +306,88 @@ Comparing with traditional optimizers, K2~\cite{xu2021synthesizing} transformed 
 \subsection{Source-Level Optimization}
 % 源码级优化
 
-\subsubsection{Cilium (+15\%)}
+\subsubsection{Cilium: From Branch Hints to Selective Stacking (+15\%)}
+% Cilium：从分支提示到选择性堆叠 (+15\%)
 
-Attempt 1: Added \texttt{unlikely()} hints to invalid ethertype branches in \texttt{cil\_from\_container()}; result +2\%.
-% 尝试 1：在 cil_from_container() 的无效 ethertype 分支加 unlikely() 提示；结果 +2%。
+The agent began Cilium exploration on 2026-06-25 with the \texttt{cilium\_endpoint\_pktgen} workload (baseline 1,488,103 pps). The first hypothesis targeted error paths in \texttt{bpf\_lxc.c}: since production traffic consists primarily of valid Ethernet frames, invalid ethertype branches should be marked \texttt{unlikely()}.
+% Agent 于 2026-06-25 开始 Cilium 探索，用 cilium_endpoint_pktgen 工作负载（baseline 1,488,103 pps）。第一个假设针对 bpf_lxc.c 中的错误路径：由于生产流量主要由有效以太网帧组成，无效 ethertype 分支应标记为 unlikely()。
 
-Attempt 2: Marked failed L3 header pull branches in \texttt{cil\_lxc\_policy()}; result +3\%.
-% 尝试 2：标记 cil_lxc_policy() 的 L3 头部拉取失败分支；结果 +3%。
+At 14:51, the agent added \texttt{unlikely()} to invalid ethertype branches in \texttt{cil\_from\_container()}: result +2\%. The agent recorded: ``branch layout hints on error paths consistently helped.'' It then applied the same pattern to four more functions over the next two hours: \texttt{cil\_lxc\_policy()} failed L3 header pulls (+3\%), \texttt{cil\_to\_container()} error paths (+4\%), and \texttt{local\_delivery()} peer-redirect condition (+5\%).
+% 14:51，agent 在 cil_from_container() 的无效 ethertype 分支加 unlikely()：结果 +2%。Agent 记录："错误路径的分支布局提示持续有帮助。"然后在接下来两小时将相同模式应用于四个函数：cil_lxc_policy() 的 L3 头部拉取失败 (+3%)，cil_to_container() 错误路径 (+4%)，local_delivery() peer-redirect 条件 (+5%)。
 
-Attempt 3: Added hints to \texttt{cil\_to\_container()} error paths; result +4\%.
-% 尝试 3：在 cil_to_container() 错误路径加提示；结果 +4%。
+At 16:11 came the breakthrough. The agent hypothesized that \texttt{tail\_ipv4\_to\_endpoint()} sees valid packet data after tail calls and proxy redirect preparation, so failed \texttt{revalidate\_data()} checks are rare. Correctness argument: ``\texttt{unlikely()} is Cilium's existing compiler hint macro and preserves the call to \texttt{revalidate\_data()} plus all pointer outputs. The patch does not change identity lookup, policy decisions, proxy redirect, metadata layout, map access, tail-call indexes, return codes, or drop notifications.'' Result: +12\% (1,672,124 pps)---the single best improvement.
+% 16:11 出现突破。Agent 假设 tail_ipv4_to_endpoint() 在 tail call 和代理重定向准备后看到有效包数据，所以 revalidate_data() 检查失败很罕见。正确性论证："unlikely() 是 Cilium 现有的编译器提示宏，保留了对 revalidate_data() 的调用以及所有指针输出。补丁不改变身份查找、策略决策、代理重定向、元数据布局、map 访问、tail-call 索引、返回码或丢弃通知。"结果：+12% (1,672,124 pps)——单个最佳改进。
 
-Attempt 4: Marked \texttt{local\_delivery()} peer-redirect condition; result +5\%.
-% 尝试 4：标记 local_delivery() 的 peer-redirect 条件；结果 +5%。
+On 2026-06-26, the agent explored composition. At 05:46, it stacked all five positive patches, expecting additive gains. Hypothesis: ``Stacking them should improve the same IPv4 endpoint-to-endpoint path more than the best single patch by improving branch layout across \texttt{cil\_from\_container()}, \texttt{local\_delivery()}, \texttt{tail\_ipv4\_to\_endpoint()}, \texttt{cil\_lxc\_policy()}, and \texttt{cil\_to\_container()}.'' Result: +8.7\% (1,617,479 pps)---worse than the single best. The agent recorded: ``stacking every small branch-layout hint lost performance relative to the focused patch.''
+% 2026-06-26，agent 探索组合。05:46，它堆叠了所有五个正向补丁，期望叠加收益。假设："堆叠应该比最佳单个补丁更多地改进相同的 IPv4 端点到端点路径，通过改进 cil_from_container()、local_delivery()、tail_ipv4_to_endpoint()、cil_lxc_policy() 和 cil_to_container() 的分支布局。"结果：+8.7% (1,617,479 pps)——比单个最佳更差。Agent 记录："堆叠每个小的分支布局提示相对于聚焦补丁失去了性能。"
 
-Attempt 5: Marked \texttt{revalidate\_data()} checks in \texttt{tail\_ipv4\_to\_endpoint()}; result +12\%, best so far.
-% 尝试 5：标记 tail_ipv4_to_endpoint() 的 revalidate_data() 检查；结果 +12%，目前最佳。
+The agent then tried alternative compositions. At 06:10, \texttt{likely(ret == CTX\_ACT\_OK)} fast path gave +8.2\%. At 06:35, marking auth/verdict/proxy branches as cold regressed to -0.8\% below baseline. At 18:01, the agent tried selective stacking: adding only the \texttt{cil\_to\_container()} hints onto the best single patch. Result: +13\%. At 19:16, adding \texttt{cil\_lxc\_policy()} hints reached the final best: +15.19\% (1,714,120 pps).
+% Agent 然后尝试替代组合。06:10，likely(ret == CTX_ACT_OK) 快速路径得到 +8.2%。06:35，标记 auth/verdict/proxy 分支为 cold 回归到基线以下 -0.8%。18:01，agent 尝试选择性堆叠：只将 cil_to_container() 提示添加到最佳单个补丁上。结果：+13%。19:16，添加 cil_lxc_policy() 提示达到最终最佳：+15.19% (1,714,120 pps)。
 
-Attempt 6: Stacked all five patches together; result +8.7\%, regression vs single best.
-% 尝试 6：堆叠所有五个补丁；结果 +8.7%，反而比单独最佳更差。
+Key lessons: (1) error-path branch hints are effective, (2) naive stacking can regress, (3) selective composition requires empirical validation.
+% 关键教训：(1) 错误路径分支提示有效，(2) 朴素堆叠可能回归，(3) 选择性组合需要实证验证。
 
-Attempt 7: Added \texttt{likely(ret == CTX\_ACT\_OK)} fast path; result +8.2\%, still worse.
-% 尝试 7：添加 likely(ret == CTX_ACT_OK) 快速路径；结果 +8.2%，仍然更差。
+\subsubsection{Tetragon: Lazy State and Load-Time Configuration (+12\%)}
+% Tetragon：延迟状态和加载时配置 (+12\%)
 
-Attempt 8: Marked auth/verdict/proxy branches as cold; result -0.8\%, regression below baseline.
-% 尝试 8：标记 auth/verdict/proxy 分支为 cold；结果 -0.8%，低于基线。
+Tetragon exploration started 2026-06-25 with the \texttt{stress\_ng\_tetragon\_policy\_hot} workload (baseline 358,681 bogo ops/s). The first two attempts targeted surface-level overhead reduction but failed: sparse selector active clear (-0.6\%) and filter args active fastpath (-0.8\%).
+% Tetragon 探索于 2026-06-25 开始，用 stress_ng_tetragon_policy_hot 工作负载（baseline 358,681 bogo ops/s）。前两次尝试针对表面开销减少但失败：稀疏选择器活动清除 (-0.6%) 和过滤参数活动快速路径 (-0.8%)。
 
-Attempt 9: Selectively stacked attempt 3 hints onto attempt 5; result +13\%.
-% 尝试 9：选择性地将尝试 3 的提示堆叠到尝试 5 上；结果 +13%。
+At 17:35, the agent identified that namespace and capability state was initialized on every event but only consumed by namespace/capability selectors. Hypothesis: ``Moving those reads from generic event entry to the selector sections that consume them removes fixed per-event helper/probe-read cost on ordinary selectors.'' Correctness: ``namespace/capability selector sections still initialize the same \texttt{msg->ns} and \texttt{msg->caps} fields before use; event payload, maps, selector layout, and tail-call dispatch are unchanged.'' Result: +8.15\% (387,898 bogo ops/s)---first positive signal.
+% 17:35，agent 发现 namespace 和 capability 状态在每个事件上初始化但只被 namespace/capability 选择器消费。假设："将读取从通用事件入口移到消费它们的选择器部分消除了普通选择器上固定的逐事件 helper/probe-read 成本。"正确性："namespace/capability 选择器部分仍在使用前初始化相同的 msg->ns 和 msg->caps 字段；事件载荷、maps、选择器布局和 tail-call 分发不变。"结果：+8.15% (387,898 bogo ops/s)——第一个正向信号。
 
-Attempt 10: Added attempt 2 hints; result +15\%, final best.
-% 尝试 10：添加尝试 2 的提示；结果 +15%，最终最佳。
+Following attempts refined this pattern. Stacking conditional namespace loading regressed to +7.7\%---again, naive stacking hurt. Skipping empty namespace loops improved to +8.6\%. Tracepoint \texttt{nop\_ty} argument fast path reached +9.05\%.
+% 后续尝试改进了这个模式。堆叠条件 namespace 加载回归到 +7.7%——再次，朴素堆叠有害。跳过空 namespace 循环改进到 +8.6%。Tracepoint nop_ty 参数快速路径达到 +9.05%。
 
-\subsubsection{Tetragon (+12\%)}
+At 20:28, the agent discovered a structural optimization. The previous no-selector fast path still paid a per-event \texttt{filter\_map} lookup to discover that selector count was zero. Hypothesis: ``Deriving a no-selector bit from the same selector buffer at policy load time, storing it in \texttt{event\_config.flags}, and letting the tracepoint hot path branch directly on the already-loaded \texttt{event\_config}.'' This eliminated a per-event map lookup entirely. Result: +11.59\% (400,249 bogo ops/s), exceeding the 10\% target.
+% 20:28，agent 发现了结构性优化。之前的无选择器快速路径仍要支付逐事件 filter_map 查找来发现选择器计数为零。假设："从策略加载时的同一选择器缓冲区派生无选择器位，存储在 event_config.flags 中，让 tracepoint 热路径直接在已加载的 event_config 上分支。"这完全消除了逐事件 map 查找。结果：+11.59% (400,249 bogo ops/s)，超过 10\% 目标。
 
-Attempt 1: Sparse selector active clear; result -0.6\%.
-% 尝试 1：稀疏选择器活动清除；结果 -0.6%。
+Key lessons: (1) surface-level cleanups often fail, (2) lazy initialization helps when data is conditionally consumed, (3) load-time configuration can eliminate per-event overhead.
+% 关键教训：(1) 表面清理通常失败，(2) 当数据被条件消费时延迟初始化有帮助，(3) 加载时配置可以消除逐事件开销。
 
-Attempt 2: Filter args active fastpath; result -0.8\%.
-% 尝试 2：过滤参数活动快速路径；结果 -0.8%。
+\subsubsection{OTEL: Instruction Reduction Without Throughput Gain (0\%)}
+% OTEL：指令减少但无吞吐量增益 (0\%)
 
-Attempt 3: Lazy namespace/capability selector state; result +8\%, breakthrough.
-% 尝试 3：延迟命名空间/能力选择器状态；结果 +8%，突破。
+OTEL exploration started 2026-06-25 with the \texttt{otel\_mixed\_workload} profiler benchmark (baseline 19.64B ops). Over two days, the agent tried seven distinct optimizations, all of which failed.
+% OTEL 探索于 2026-06-25 开始，用 otel_mixed_workload profiler 基准（baseline 19.64B ops）。两天内，agent 尝试了七个不同的优化，全部失败。
 
-Attempt 4: Stacked attempt 3 with conditional namespace; result +7.7\%, regression.
-% 尝试 4：将尝试 3 与条件命名空间堆叠；结果 +7.7%，回归。
+The most instructive failure was the PHP batching optimization on 2026-06-26 at 11:22. Hypothesis: ``PHP contributed the largest share of the mixed-language workload, so batching successful PHP frame metric increments within one \texttt{walk\_php\_stack()} call might reduce per-frame map lookup/helper overhead.'' The agent batched metrics locally and wrote once at function exit. Result: \texttt{unwind\_php} shrank from 6,899 to 3,358 instructions (51\% reduction), but throughput regressed -0.70\%. The agent recorded: ``The BPF body shrank substantially, but workload throughput regressed within the OTEL noise envelope.''
+% 最有教育意义的失败是 2026-06-26 11:22 的 PHP 批处理优化。假设："PHP 贡献了混合语言工作负载的最大份额，所以在一次 walk_php_stack() 调用中批处理成功的 PHP 帧指标增量可能减少逐帧 map 查找/helper 开销。"Agent 在本地批处理指标，在函数退出时一次写入。结果：unwind_php 从 6,899 缩小到 3,358 指令（减少 51%），但吞吐量回归 -0.70%。Agent 记录："BPF 函数体大幅缩小，但工作负载吞吐量在 OTEL 噪声范围内回归。"
 
-Attempt 5: Added skip empty namespace loop; result +8.6\%.
-% 尝试 5：添加跳过空命名空间循环；结果 +8.6%。
-
-Attempt 6: Added tracepoint nop\_ty arg fast path; result +9.1\%.
-% 尝试 6：添加 tracepoint nop_ty 参数快速路径；结果 +9.1%。
-
-Attempt 7: Deferred selector-specific active clear; result +9.0\%, not stacked.
-% 尝试 7：延迟选择器特定的活动清除；结果 +9.0%，未堆叠。
-
-Attempt 8: Load-time no-selector \texttt{event\_config.flags} bit; result +12\%, reached target.
-% 尝试 8：加载时无选择器 event_config.flags 位；结果 +12%，达到目标。
-
-Attempt 9: Deferred \texttt{sel.pass} store; result +9.4\%, regression.
-% 尝试 9：延迟 sel.pass 存储；结果 +9.4%，回归。
-
-\subsubsection{OTEL (0\%)}
-
-Attempt 1: Direct \texttt{send\_trace()} size calculation; result -0.05\%.
-% 尝试 1：直接 send_trace() 大小计算；结果 -0.05%。
-
-Attempt 2: Removed repeated per-CPU lookups; result -1.5\%.
-% 尝试 2：移除重复的 per-CPU 查找；结果 -1.5%。
-
-Attempt 3: Larger native unwinder body; result -0.2\%.
-% 尝试 3：更大的原生 unwinder 函数体；结果 -0.2%。
-
-Attempt 4: Lazy custom-label clearing; result -0.8\%.
-% 尝试 4：延迟自定义标签清除；结果 -0.8%。
-
-Attempt 5: Batched PHP metrics, 6899$\to$3358 instructions; result -0.7\%.
-% 尝试 5：批量 PHP 指标，6899→3358 条指令；结果 -0.7%。
-
-Attempt 6: Native-unwind error branch hints; result -1.4\%.
-% 尝试 6：原生 unwind 错误分支提示；结果 -1.4%。
-
-All attempts failed; instruction reduction did not improve throughput.
-% 所有尝试都失败了；指令减少并未提升吞吐量。
+This is a negative result demonstrating that instruction count reduction does not guarantee performance improvement---code size reduction can disrupt hot-path locality or shift bottlenecks elsewhere.
+% 这是一个负面结果，表明指令数减少不保证性能提升——代码大小减少可能破坏热路径局部性或将瓶颈转移到其他地方。
 
 \subsection{LLVM Bytecode Optimization}
 % LLVM 字节码优化
 
-The agent explored bytecode-level passes that transform BPF instructions before kernel loading.
-% Agent 探索了在内核加载前变换 BPF 指令的字节码级 pass。
+The \texttt{const\_prop} pass on 2026-05-06 showed 96.6\% EACCES rejection rate (140/145 programs) on tracee and cilium. Examining verifier logs revealed the cause: constant-folding pointer arithmetic produced scalar values where the verifier expected typed pointers. For example, tracee program \texttt{sys\_enter\_submit} failed at \texttt{bpf\_probe\_read\_kernel} with ``R1 type=scalar expected=fp, pkt, pkt\_meta, map\_key, map\_value.'' The agent developed a diagnostic methodology: when a pass combination failed, isolate each pass. Testing \texttt{noop,wide\_mem} succeeded; \texttt{noop,dce} succeeded; but \texttt{noop,const\_prop} reproduced the failure with a 31-second verifier timeout on Cilium.
+% const_prop pass 在 2026-05-06 在 tracee 和 cilium 上显示 96.6\% EACCES 拒绝率 (140/145 程序)。检查 verifier log 揭示原因：常量折叠指针运算产生标量值，而 verifier 期望类型指针。例如，tracee 程序 sys_enter_submit 在 bpf_probe_read_kernel 处失败，显示"R1 type=scalar expected=fp, pkt, pkt_meta, map_key, map_value"。Agent 开发了诊断方法：当 pass 组合失败时，隔离每个 pass。测试 noop,wide_mem 成功；noop,dce 成功；但 noop,const_prop 在 Cilium 上复现了 31 秒 verifier 超时的失败。
 
-The first discovery was pass ordering: \texttt{const\_prop} requires verifier state from \texttt{noop}, creating a mandatory pipeline \texttt{noop} $\to$ \texttt{map\_inline} $\to$ \texttt{const\_prop} $\to$ \texttt{dce}.
-% 第一个发现是 pass 顺序：const_prop 需要 noop 的 verifier 状态，创建强制管道 noop → map_inline → const_prop → dce。
-
-Running \texttt{const\_prop} first failed with missing state errors; the agent learned to always prepend \texttt{noop}.
-% 先跑 const_prop 因缺少状态而失败；agent 学会了总是先加 noop。
-
-The \texttt{map\_inline} pass showed app-dependent results: Katran achieved 12\% with 11 static map sites, OTEL achieved 34\% with 8 sites, but Tetragon only 2\% because 33\% of sites had dynamic keys and were skipped.
-% map_inline pass 显示了应用相关的结果：Katran 用 11 个静态 map 站点实现 12%，OTEL 用 8 个站点实现 34%，但 Tetragon 只有 2%，因为 33% 的站点有动态键被跳过。
-
-The agent tried \texttt{wide\_mem} to coalesce byte loads into 64-bit loads; OTEL transformed 132 sites but throughput was flat, while Tetragon triggered verifier rejection when wider loads crossed BTF field boundaries.
-% Agent 尝试 wide_mem 将字节加载合并为 64 位加载；OTEL 变换了 132 个站点但吞吐量平坦，而 Tetragon 在更宽加载跨越 BTF 字段边界时触发 verifier 拒绝。
-
-A critical failure occurred with \texttt{const\_prop} on Cilium: constant-folding pointer arithmetic broke tail-call context, causing a 31-second timeout.
-% const_prop 在 Cilium 上发生了严重失败：常量折叠指针运算破坏了 tail-call 上下文，导致 31 秒超时。
-
-The agent diagnosed this by isolating passes: \texttt{noop,wide\_mem} succeeded, \texttt{noop,dce} succeeded, but \texttt{noop,const\_prop} reproduced the failure.
-% Agent 通过隔离 pass 诊断：noop,wide_mem 成功，noop,dce 成功，但 noop,const_prop 复现了失败。
-
-This taught the agent that LLVM-level transformations must preserve verifier invariants invisible in bytecode alone.
-% 这教会了 agent：LLVM 级变换必须保留仅从字节码中不可见的 verifier 不变量。
+Key lesson: bytecode transformations must preserve verifier type invariants that are invisible in bytecode alone.
+% 关键教训：字节码变换必须保留仅从字节码中不可见的 verifier 类型不变量。
 
 \subsection{Kernel JIT Optimization (Kops)}
 % 内核 JIT 优化 (Kops)
 
-Kops passes replace BPF bytecode sequences with kfunc calls that the kernel JIT lowers to native instructions.
-% Kops pass 将 BPF 字节码序列替换为 kfunc 调用，由内核 JIT 降级为原生指令。
+\subsubsection{cond\_select: Branch Predictability Determines CMOV Profitability}
+% cond_select：分支可预测性决定 CMOV 盈利性
 
-The agent first tested \texttt{rotate} on micro benchmarks: \texttt{siphash\_rotate64\_mixer} achieved 1.9$\times$ speedup with 348 ARM64 EXTR sites.
-% Agent 首先在微基准上测试 rotate：siphash_rotate64_mixer 用 348 个 ARM64 EXTR 站点实现了 1.9 倍加速。
+The agent tested \texttt{cond\_select}, which converts branch-over-mov sequences to branchless CMOV/CSEL instructions. On \texttt{cond\_select\_dense}, where branches are uniformly random, CMOV achieved 37\% speedup by eliminating misprediction penalties. Encouraged, the agent applied the same pass to \texttt{log2\_fold}---but it regressed 28\%.
+% Agent 测试 cond_select，它将 branch-over-mov 序列转换为无分支的 CMOV/CSEL 指令。在分支均匀随机的 cond_select_dense 上，CMOV 通过消除误预测惩罚实现了 37\% 加速。受鼓舞后，agent 将相同 pass 应用于 log2_fold——但它回归了 28\%。
 
-Encouraged, the agent applied the same pass to \texttt{bpftrace\_comm\_key\_fnv\_hash}---but it regressed 14\%, despite using identical kinsn families.
-% 受鼓舞后，agent 将相同 pass 应用于 bpftrace_comm_key_fnv_hash——但它回归了 14%，尽管使用了相同的 kinsn 系列。
+Analysis: \texttt{log2\_fold} has highly predictable branches (counting leading zeros follows a deterministic pattern). Branch prediction works well; CMOV forces the CPU to compute both paths and wait for the condition, adding latency. The agent concluded: ``CMOV profitability depends on branch predictability, which cannot be determined statically from bytecode alone.''
+% 分析：log2_fold 有高度可预测的分支（计数前导零遵循确定性模式）。分支预测工作良好；CMOV 强制 CPU 计算两条路径并等待条件，增加延迟。Agent 总结："CMOV 盈利性取决于分支可预测性，这无法仅从字节码静态确定。"
 
-On Cilium production with 4,086 sites, the net effect was only 1.01$\times$---micro gains did not transfer to real workloads.
-% 在 Cilium 生产环境 4,086 个站点上，净效果仅为 1.01 倍——微基准收益没有转移到实际工作负载。
+\subsubsection{bulk\_memory: Architecture Determines Native Instruction Availability}
+% bulk_memory：架构决定原生指令可用性
 
-The agent then explored \texttt{cond\_select}, converting branches to CMOV: \texttt{cond\_select\_dense} showed 37\% speedup, but \texttt{log2\_fold} regressed 28\%.
-% Agent 然后探索 cond_select，将分支转换为 CMOV：cond_select_dense 显示 37\% 加速，但 log2_fold 回归 28\%。
+The agent tested \texttt{bulk\_memory}, which replaces byte-copy loops with native bulk memory instructions. On x86 Cilium, REP MOVSB reduced BPF execution cost by 22\% and improved workload throughput by 28\%. Encouraged, the agent enabled the same pass on ARM64 Cilium---but BPF cost increased by 6.6\%.
+% Agent 测试 bulk_memory，它用原生批量内存指令替换字节复制循环。在 x86 Cilium 上，REP MOVSB 将 BPF 执行成本降低 22\%，工作负载吞吐量提升 28\%。受鼓舞后，agent 在 ARM64 Cilium 上启用相同 pass——但 BPF 成本增加了 6.6\%。
 
-Analysis revealed the difference: unpredictable branches benefit from CMOV, but predictable branches are faster with branch prediction.
-% 分析揭示了差异：不可预测分支从 CMOV 受益，但可预测分支用分支预测更快。
+Analysis: ARM64 lacks an efficient REP MOVSB equivalent. The kfunc fell back to a helper call with loop overhead, actually slower than the original byte-copy loop. The agent learned to maintain per-architecture policies: enable \texttt{bulk\_memory} on x86, disable on ARM64.
+% 分析：ARM64 缺少高效的 REP MOVSB 等效。kfunc 回退到带循环开销的 helper 调用，实际上比原始字节复制循环更慢。Agent 学会了维护每架构策略：在 x86 上启用 bulk_memory，在 ARM64 上禁用。
 
-The \texttt{bulk\_memory} pass exposed architecture dependence: x86 Cilium improved 28\% with REP MOVSB, but ARM64 Cilium regressed 6.6\% because ARM64 lacks an efficient equivalent.
-% bulk_memory pass 暴露了架构依赖：x86 Cilium 用 REP MOVSB 提升 28%，但 ARM64 Cilium 回归 6.6%，因为 ARM64 缺少高效等效指令。
-
-The agent learned to maintain per-architecture policies: enable \texttt{bulk\_memory} on x86, disable on ARM64.
-% Agent 学会了维护每架构策略：在 x86 上启用 bulk_memory，在 ARM64 上禁用。
-
-Across 29 micro benchmarks, the same kinsn policy produced outcomes ranging from 1.9$\times$ speedup to 0.86$\times$ slowdown---a 2.2$\times$ variance that proves uniform policies fail.
-% 在 29 个微基准上，相同的 kinsn 策略产生了从 1.9 倍加速到 0.86 倍减速的结果——2.2 倍方差证明统一策略失败。
+Key lesson: native instruction availability varies by architecture; uniform policies fail.
+% 关键教训：原生指令可用性因架构而异；统一策略失败。
 
 \end{document}
