@@ -66,7 +66,7 @@ draw_box(ax, 6.1, 2.1, 1.1, 0.6, 'BCC\nTrace', 'white', 7)
 draw_box(ax, 7.3, 2.1, 1.1, 0.6, 'OTEL\nProf', 'white', 7)
 draw_box(ax, 8.5, 2.1, 1.0, 0.6, '42\nMicro', 'white', 7)
 
-draw_box(ax, 0.7, 1.7, 8.8, 0.35, '146 BPF Programs  |  ReJIT (kinsn: 305K sites)  |  Workloads: stress-ng, iperf3, hackbench', 'white', 7)
+draw_box(ax, 0.7, 1.7, 8.8, 0.35, '146 BPF Programs  |  ReJIT (kop: 305K sites)  |  Workloads: stress-ng, iperf3, hackbench', 'white', 7)
 
 # === Layer 4: Feedback ===
 draw_box(ax, 0.5, 0.2, 9, 1.2, '', FEEDBACK_COLOR)

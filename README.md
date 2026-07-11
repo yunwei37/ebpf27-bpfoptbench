@@ -4,7 +4,7 @@ This repository is the paper workspace for:
 
 > BPFOptBench: Benchmarking Agentic Optimization of Existing eBPF Programs
 
-The current draft frames the work as a benchmark/tooling paper, not as a claim that the current optimizer already wins across the corpus. The first track should evaluate agents that tune existing eBPF programs through bytecode/ReJIT/kinsn-backed actions under real verifier, JIT, application, workload, and performance feedback.
+The current draft frames the work as a benchmark/tooling paper, not as a claim that the current optimizer already wins across the corpus. The first track should evaluate agents that tune existing eBPF programs through bytecode/ReJIT/KOperation-backed actions under real verifier, JIT, application, workload, and performance feedback.
 
 Key files:
 
@@ -16,7 +16,7 @@ Key files:
 Current scope:
 
 - Primary: agent policy over existing optimization actions, especially suite-wide, per-app, and per-program pass selection.
-- Supported first-track backends: bytecode-only, live ReJIT, optional kinsn.
+- Supported first-track backends: bytecode-only, live ReJIT, optional KOperation.
 - Future adapters: source-level rewrites, LLVM BPF backend changes, pre-load object rewrites beyond the existing path.
 - Benchmark assets still needed: frozen task manifests, hidden evaluator, protected workloads, private/rotating holdout tasks, fresh-VM replay, and expert-audited reference solutions.
 

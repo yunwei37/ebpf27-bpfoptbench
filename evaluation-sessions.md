@@ -80,7 +80,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 | Pass 组合 | May 23-29 | ~350 | 11-pass full pipeline vs 单 pass 隔离 |
 | Noise Floor | May 7-8 | ~150 | Q1/P1 基线校准 |
 | LEA 调试 | Jun 2-3 | ~150 | lea pass 高失败率调试 |
-| Kinsn 评估 | Jun 3-6 | ~100 | all-force kinsn 策略验证 |
+| KOperation 评估 | Jun 3-6 | ~100 | all-force kop 策略验证 |
 | ARM64 验证 | Jun 14-17 | ~180 | 跨架构覆盖 |
 | 近期验证 | Jun 22 | ~50 | 最新 infrastructure 验证 |
 
@@ -92,9 +92,9 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 
 2. **June 2 LEA 崩溃日**: 94 个 sessions 中 77 个 error (82% 失败率)
    - 触发了 lea pass 的深入调试
-   - 暴露了 kinsn 与 verifier 交互的边界情况
+   - 暴露了 kop 与 verifier 交互的边界情况
 
-3. **June 3 Kinsn 突破**: `x86_kvm_corpus_20260603_175429_964295`
+3. **June 3 KOperation 突破**: `x86_kvm_corpus_20260603_175429_964295`
    - BPF geomean **0.938x** (6.2% 改进)
    - 27,085 sites applied, 0 errors
    - 首个 paper-grade 正向结果
@@ -112,7 +112,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 | [empty/default] | 115 | 98 | 10 | May 22 - Jun 22 |
 | lea only | 102 | 13 | 76 | May 31 - Jun 3 |
 | ARM64 pipeline (10 passes) | 97 | 43 | 16 | Jun 14-17 |
-| kinsn only | 50 | 37 | 9 | Jun 3-8 |
+| kop only | 50 | 37 | 9 | Jun 3-8 |
 | rotate only | 35 | 8 | 21 | Jun 2-3 |
 | map_inline only | 33 | 22 | 11 | May 21-22 |
 
@@ -122,7 +122,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 
 | Pass | Sessions | Sites Applied | Sites Matched | Sites Skipped |
 |------|-------:|-------------:|-------------:|-------------:|
-| **kinsn** | 30 | **305,449** | 305,449 | 0 |
+| **kop** | 30 | **305,449** | 305,449 | 0 |
 | **rotate** | 40 | **222,547** | 222,547 | 0 |
 | **lea** | 10 | **46,749** | 46,749 | 0 |
 | **cond_select** | 13 | **6,578** | 6,578 | 0 |
@@ -166,7 +166,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 - 大部分是连续重试（每隔几分钟一个）
 
 **根因**:
-1. lea pass 依赖 kinsn 基础设施
+1. lea pass 依赖 kop 基础设施
 2. 某些 verifier log 边界情况导致 daemon 崩溃
 3. 属于 active debugging 期间的预期行为
 
@@ -183,7 +183,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 | May 21-24 密集期 | ~60% | 预期的探索噪声 |
 | May 27-29 稳定期 | ~75% | 方法论改进 |
 | Jun 1-2 LEA 调试 | ~15% | 集中调试 |
-| Jun 3-6 Kinsn 评估 | ~80% | 稳定后验证 |
+| Jun 3-6 KOperation 评估 | ~80% | 稳定后验证 |
 | Jun 14-17 ARM64 | ~70% | 跨架构扩展 |
 
 ---
@@ -205,14 +205,14 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 | 日期 | Sessions | 说明 |
 |------|-------:|------|
 | Jun 14 | 42 | ARM64 初始 pipeline 测试 |
-| Jun 15 | 48 | kinsn ARM64 适配验证 |
+| Jun 15 | 48 | kop ARM64 适配验证 |
 | Jun 16 | 45 | ARM64-only passes (ccmp) |
 | Jun 17 | 39 | 最终 paper-grade 运行 |
 | **合计** | **174** | **占全部 ARM64 corpus 的 82%** |
 
 **原因**:
 1. x86 pipeline 在 Jun 3 稳定后，优先级转向 ARM64
-2. ARM64 需要特定的 kinsn 指令 (EXTR, UBFM, REV)
+2. ARM64 需要特定的 kop 指令 (EXTR, UBFM, REV)
 3. `ccmp` pass 只对 ARM64 有效
 4. Paper deadline 驱动的集中验证
 
@@ -221,11 +221,11 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 **Session**: `aws_arm64_micro_20260606_001225_821028`
 - Benchmarks: 29
 - **Speedup geomean: 1.208x** (20.8% 改进)
-- Kinsn-bearing geomean: 1.222x over 27 benchmarks
+- KOperation-bearing geomean: 1.222x over 27 benchmarks
 - Wins/losses/ties: 24/2/3
 - Code-size ratio: 0.879x (12% 更小)
 
-**Kinsn 调用分布**:
+**KOperation 调用分布**:
 | 指令 | 调用次数 |
 |------|-------:|
 | bpf_arm64_extr_x | 387 |
@@ -241,25 +241,25 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 
 ## 5. 有趣的发现 (Interesting Findings)
 
-### 5.1 Kinsn 主导 (305K Sites)
+### 5.1 KOperation 主导 (305K Sites)
 
 **关键数据**:
-- kinsn 应用了 305,449 sites，占全部应用的 ~52%
+- kop 应用了 305,449 sites，占全部应用的 ~52%
 - 其次是 rotate (222,547) 和 lea (46,749)
 
-**June 3 All-Force Kinsn 突破**:
+**June 3 All-Force KOperation 突破**:
 - Session: `x86_kvm_corpus_20260603_175429_964295`
 - Applied: 27,085/27,085 sites (0 skipped, 0 errors)
 - BPF geomean: **0.938x** (6.2% 改进)
 - Workload throughput: **1.081x** (8.1% 吞吐提升)
 
-**Kinsn 家族分布**:
+**KOperation 家族分布**:
 | 家族 | Sites | 占比 |
 |------|------:|-----:|
 | lea | 26,097 | 96.4% |
 | cond_select | 988 | 3.6% |
 
-**具体 kinsn 名称**:
+**具体 kop 名称**:
 | 名称 | 调用次数 |
 |------|-------:|
 | bpf_x86_leaq | 24,352 |
@@ -322,8 +322,8 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 
 ### 有效的策略
 
-1. **Kinsn 优先**: 305K sites 的高覆盖率证明了 kinsn 是主要优化机会
-   - LEA 指令替换是最大赢家 (96% of kinsn sites)
+1. **KOperation 优先**: 305K sites 的高覆盖率证明了 kop 是主要优化机会
+   - LEA 指令替换是最大赢家 (96% of kop sites)
    - ARM64 上 20.8% 改进比 x86 上 6.2% 更显著
 
 2. **Noise Floor 校准必要**: Q1/P1 基线发现了 4.3% 的系统性偏差
@@ -343,7 +343,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
    - Applied-split 悖论暴露了问题
 
 2. **LEA Pass 孤立测试**: 85% 失败率
-   - 需要完整的 kinsn 基础设施支持
+   - 需要完整的 kop 基础设施支持
    - 不能作为独立 pass 评估
 
 3. **Short Workload (3s)**: 大量 3s 运行产生了高噪声
@@ -360,7 +360,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 **证据**:
 - map_inline 33% skip rate 来自动态 map 状态
 - lea 在 Jun 2 的 85% 失败率需要实时调试
-- ARM64 需要不同的 kinsn 指令集
+- ARM64 需要不同的 kop 指令集
 
 **Auto-Research 价值**:
 - 2,874 sessions 的规模人工不可能完成
@@ -379,8 +379,8 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 | `x86_kvm_corpus_20260428_070851_973550` | Apr 28 | corpus | Geomean 1.004x, 146 programs |
 | `x86_kvm_corpus_20260507_190554_205137` | May 7 | corpus | Q1 noop baseline 0.902x |
 | `x86_kvm_corpus_20260508_000244_131324` | May 8 | corpus | P1 skip-rejit baseline 0.859x |
-| `x86_kvm_corpus_20260603_175429_964295` | Jun 3 | corpus | Kinsn 0.938x, 27085 sites |
-| `aws_arm64_micro_20260606_001225_821028` | Jun 6 | micro | ARM64 kinsn 1.208x |
+| `x86_kvm_corpus_20260603_175429_964295` | Jun 3 | corpus | KOperation 0.938x, 27085 sites |
+| `aws_arm64_micro_20260606_001225_821028` | Jun 6 | micro | ARM64 kop 1.208x |
 
 ### 调试 Sessions 示例
 
@@ -404,7 +404,7 @@ BPFOptBench 的核心贡献不仅是最终的性能数字，更是**自动化探
 
 BPFOptBench 的探索规模（2,874 sessions, 25 种 pass 配置）证明了 auto-research 框架的价值。关键发现：
 
-1. **Kinsn 是主要机会**: 305K sites, ARM64 上 20.8% 改进
+1. **KOperation 是主要机会**: 305K sites, ARM64 上 20.8% 改进
 2. **Noise Floor 是真实的**: 4.3% 基线偏差需要超越
 3. **Adaptive Exploration 必要**: 静态策略无法应对动态 BPF 生态
 

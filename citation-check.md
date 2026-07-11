@@ -81,7 +81,7 @@ Verified 19 citations from reference.bib. Found 5 issues requiring attention.
 
 | Citation | arXiv ID | Title | Authors | Year | Status |
 |----------|----------|-------|---------|------|--------|
-| kops2026 | 2606.24213 | Kops: Safely Extending the eBPF Compilation Pipeline with Native Operations | Yusheng Zheng et al. | 2026 | OK |
+| koperation2026 | 2606.24213 | KOperation: Safely Extending the eBPF Compilation Pipeline with Native Operations | Yusheng Zheng et al. | 2026 | OK |
 | gso2025 | 2505.23671 | GSO: Challenging Software Optimization Tasks for Evaluating SWE-Agents | Manish Shetty et al. | 2025 | OK |
 | kernelbench2025 | 2502.10517 | KernelBench: Can LLMs Write Efficient GPU Kernels? | Anne Ouyang et al. | 2025 | OK |
 | swebench2023 | 2310.06770 | SWE-bench: Can Language Models Resolve Real-World GitHub Issues? | Carlos E. Jimenez et al. | 2023 | OK |
