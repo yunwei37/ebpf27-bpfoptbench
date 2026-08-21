@@ -1,0 +1,78 @@
+\section{Introduction}
+
+eBPF is an extension mechanism of the Linux kernel, with which users load programs into the running kernel and attach them to hooks such as packet reception and system calls~\cite{gbadamosi2024ebpf}.
+% eBPF 是 Linux 内核的扩展机制,用户把程序装载进正在运行的内核,挂在网络收包、系统调用等钩子上。
+Container networking in Cilium and security monitoring in Tetragon and Tracee are built on these programs~\cite{cilium,tetragon,doerrfeld2026ebpf}.
+% Cilium 的容器网络、Tetragon 与 Tracee 的安全监控都建立在这类程序上。
+A program runs on every occurrence of the event it hooks, so its cost, multiplied by the invocation frequency and then by the fleet size, is the server cost of~this~technology~\cite{xu2021synthesizing,doerrfeld2026ebpf}.
+% 程序在它挂接的事件每次发生时运行,单次开销乘以调用频率再乘以机群规模,就是这项技术的服务器成本。
+Such a program is compiled and optimized once on a build machine and distributed to every machine of the fleet.
+% 这样的程序在构建机上编译并优化一次,分发到机群里的每一台机器装载。
+
+The optimization is done once on the build machine, yet its effect is decided by the machine that loads the program.
+% 优化在构建机上一次做完,而它的效果由装载程序的那台机器决定。
+The portability mechanism of eBPF adjusts data layout at load time and leaves untouched what the program does, so nothing reconsiders the program for the machine it lands on~\cite{llvm-bpf-reloc}.
+% eBPF 的可移植机制在装载时调整数据布局,不改变程序做什么,因此程序分发之后,没有任何环节会为它落在的机器重新考虑一遍。
+A measurement study of production applications reports that the gain of one optimization varies with the workload and with the hook the program attaches to~\cite{shahinfar2025demystifying}.
+% 一项针对生产应用的测量研究显示,同一处优化的收益随负载与程序挂载的钩子而变。
+Our own controlled runs show that applying one set of optimizations to every machine yields no more measured speedup than changing nothing at all.
+% 我们自己的受控运行显示,把同一套优化施加到每台机器,测出的加速并不比什么都不改时更大。
+Serving every machine well therefore calls for rewriting the program for each machine separately.
+% 要让每台机器都得到好的效果,因此要为每台机器分别改写程序。
+
+No existing approach offers an open rewrite space, a checkable guarantee of correctness, and a benefit decided on the target machine at the same time.
+% 现有的做法没有一种同时具备开放的改写空间、可查的正确性,以及在目标机器上判定的收益。
+Practitioners write the per-kernel variants by hand, which costs human effort and brings no optimization~\cite{mao2024merlin}.
+% 工程上由人手写逐内核版本的变体,这耗费人力,也不带来任何优化。
+Automatic eBPF optimizers keep their rewrites correct by construction, as K2 attaches an equivalence proof to every output it emits, EPSO reuses rules synthesized offline, Merlin applies passes written in advance, and Morpheus specializes at run time behind guards that fall back to the original~\cite{xu2021synthesizing,zhu2025epso,mao2024merlin,miano2022morpheus}.
+% 自动的 eBPF 优化器靠构造保住改写的正确性,K2 给每个产物附等价证明,EPSO 复用离线合成的规则,Merlin 施加预先写好的变换,Morpheus 在运行时特化并以守卫在失效时回退到原程序。
+The transformations of all four are fixed before deployment, and none of them adopts a rewrite for a gain measured on the machine where the program will run.
+% 四者的变换在部署前就已固定,也都不以程序将要运行的那台机器上实测的收益为采纳条件。
+Large language models propose rewrites far beyond such a fixed set, yet their output cannot be trusted, as cheating and semantically wrong programs that pass the safety verification are both \mbox{on public record~\cite{metr2025details,sakana2025ai,zheng2024kgent}}.
+% 大语言模型能提出远超这类固定集合的改写,但它们的产出不可信,作弊与通过安全验证却语义错误的程序都有公开记录。
+
+Proving that a rewrite preserves the semantics of a program has no complete method on ordinary code, and yet it can be done on eBPF.
+% 证明一次改写保住了程序的语义,在一般代码上没有完备的方法,而在 eBPF 上可以做到。
+The kernel verifier admits a program only after proving that it terminates and that its stack, its memory accesses, and its instruction count are all bounded, so a program that loads at all unfolds into a finite formula~\cite{gershuni2019simple,linuxkernel-bpf-verifier}.
+% 内核验证器只在证明程序会终止,且其栈、内存访问与指令数都有界之后才放行它,因此凡能装载的程序都能展开成一个有限的公式。
+The environment such a program may touch is a fixed set of helper functions and map operations that the kernel publishes and the toolchain turns into machine-readable prototypes, so the environment is a catalog that can be modeled entry by entry~\cite{gbadamosi2024ebpf}.
+% 这样的程序能触碰的环境是一组固定的 helper 函数与 map 操作,内核公布它们,工具链把它们转成机器可读的原型,因此环境是一份可以逐条建模的清单。
+What the program leaves behind is confined to its return value, the memory it is allowed to write, and the effects of the calls it makes, so the observable surface is closed.
+% 程序留下的痕迹只有返回值、它被允许写入的内存,以及它所做调用的效果,观测面因而是封闭的。
+Under these three restrictions an equivalence query is finite and a rewrite can carry a machine-checked proof, while a checker on ordinary code must either fix the intermediate representation and the environment or fall back to testing.
+% 在这三条限制之下,一次等价查询规模有限,一次改写可以带着机器可查的证明,而一般代码上的检查器要么固定中间表示与环境,要么退回测试。
+% TODO(引用):带证明的 LLM 改写工作(以 Alive2 判定 LLVM 精化、提升到 DSL 后验证)待补引用,接在本段末句之后。
+
+\sys accepts a rewrite only on evidence it can check, a proof for equivalence and a measurement for benefit.
+% BPFTailor 只接受可查的证据,等价看证明,收益看测量。
+An LLM agent proposes rewrites through fixed entry points, and what the agent itself reports takes no part in the decision.
+% LLM agent 通过固定的入口提议改写,agent 自己的报告不参与判定。
+An equivalence checker compiles the two programs into formulas and asks a solver whether any input tells them apart, admitting a rewrite only when none does and answering that it does not know when a program leaves the fragment it models.
+% 等价检查器把两个程序编译成公式,询问求解器是否存在能把它们区分开的输入,只有不存在时才放行改写,程序超出所建模的片段时,检查器回答不知道。
+Benefit admits no such proof and must be measured on the target machine under the target workload.
+% 收益无法这样证明,只能在目标机器上以目标负载测出来。
+Measuring the same program twice already reads as much as 14\% faster the second time, because the caches have warmed and the state of the kernel has moved, so every measurement carries no-change controls and a claimed gain must exceed what those controls read.
+% 同一程序先后测两次,第二次因为缓存变热、内核状态改变而快出可达 14%,因此每次测量都带无改动对照,声明的收益必须超过对照读出的加速。
+
+The evaluation shows that this proof gate both reaches far enough and is necessary, and that little real gain survives it.
+% 评测显示这道证明关既够用也必要,而它放行之后剩下的真实收益并不多。
+% TODO(实验):以下三句为完整形态,数字待证明器三态分布、无证明关的重裁与判定后收益三组实验落数。
+The checker decides most of the rewrites we collected and withholds acceptance from the rest.
+% 检查器对我们收集到的多数改写给出确定结论,对其余的不予接受。
+Without the gate, a substantial share of the rewrites that the agent reported as successes would have been accepted although they are semantically wrong or unverifiable.
+% 不设这道关,agent 报告为成功的改写中有相当一部分会被接受,而它们或语义有错、或无法证实。
+Among the rewrites that pass, the gains that exceed the drift of the controls are real but few.
+% 在通过判定的改写中,超过对照漂移的收益真实存在,但数量很少。
+
+\noindent\textbf{Contributions.}
+This paper makes three contributions.
+% 本文做出三项贡献。
+\begin{itemize}
+% TODO(交叉引用):可判定性一节写好后,把下面的 sec:design 改为 sec:decidable。
+\item We show that rewriting an eBPF program for one machine is a problem a machine can decide, and we trace the decidability to three restrictions that the platform~imposes~(\S\ref{sec:design}).
+% 我们说明为一台机器改写 eBPF 程序是一个可以由机器判定的问题,并把可判定性归结到平台施加的三条限制。
+\item We build \sys, in which an untrusted agent proposes rewrites, an equivalence checker accepts only the proven ones, and control runs decide whether an accepted rewrite is faster (\S\ref{sec:design}).
+% 我们构建 BPFTailor,由不可信的 agent 提议改写,等价检查器只接受被证明的那些,对照运行判定被接受的改写是否更快。
+\item We report how much of the rewriting the proof covers, how many unsound rewrites enter without the proof gate, and how much real gain survives the measurement (\S\ref{sec:eval}).
+% 我们报告等价证明覆盖了多少改写、不设证明关会放进多少不实的改写,以及测量之后还剩下多少真实收益。
+\end{itemize}

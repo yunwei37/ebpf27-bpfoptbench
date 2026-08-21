@@ -1,0 +1,54 @@
+\section{Implementation}\label{sec:impl}
+
+This section reports what we have built.
+% 本节说明我们实际建成的部分。
+Section~\ref{sec:impl-checker} describes the implementation of the equivalence checker and the range it models, and Section~\ref{sec:impl-harness} describes the harness and the way the agent connects to it.
+% 4.1 节描述等价检查器的实现与它的建模范围,4.2 节描述运行装置与 agent 的接入方式。
+
+\subsection{The Equivalence Checker}\label{sec:impl-checker}
+
+The equivalence checker is a command-line tool named \texttt{ebpf-tv} that takes the two object files and a section name and prints a verdict together with the stage that produced it.
+% 等价检查器实现为一个名为 ebpf-tv 的命令行工具,它接收改写前后的两个目标文件与一个段名,输出带分阶段诊断的判定结果。
+About 2,600 lines of first-party C++ drive an SMT backend of about 16,700 lines that we extracted from the K2 superoptimizer under its MIT license, and our own part covers the command line, the extraction of map metadata from the object files, the loader, and the kernel function models added on top~\cite{xu2021synthesizing}.
+% 约 2600 行自有 C++ 代码驱动一个约 16700 行的 SMT 后端,后端取自 K2 超优化器并沿用其 MIT 许可,自有部分包括命令行、从目标文件提取 map 元数据、装载器,以及在其上补充的内核函数模型。
+A second backend admits only byte-identical object files, and a missing backend or a failing solver yields undecided rather than~equivalent.
+% 另有一个后端只接受逐字节相同的目标文件,而后端缺失或求解异常时一律给出无法判定。
+
+How much of the rewriting reaches a definite verdict depends on what the checker models, and Table~\ref{tab:coverage} gives the full picture.
+% 建模的覆盖决定了多少改写能得到确定的结论,表 2 给出完整情况。
+Eleven map types are accepted and every other type yields undecided, and among the accepted ones the hash and array families are modeled as general key-value stores, while the other five are accepted only as metadata for the kernel functions that take them.
+% 接受十一种 map 类型,其余一律给出无法判定,而被接受的类型中哈希与数组两族按一般键值表建模,另外五种仅作为取用它们的那些内核函数的元数据被接受。
+Four kernel functions are modeled together with the state they change, twelve return a fresh symbolic value that the two programs share, forty-two more are modeled only under conditions the checker can read off the instructions, and the rest yield undecided.
+% 四个内核函数连同它们改动的状态一起建模,十二个返回一个两个程序共享的新符号量,另有四十二个只在检查器能从指令中直接读出的条件下建模,其余给出无法判定。
+The relocations that bind a program to its maps are resolved, while the relocations that adapt a program to the data layout of a kernel are not modeled, and neither is the redirect family of kernel~functions.
+% 把程序与其 map 绑定的重定位会被解析,而使程序适配内核数据布局的那类重定位尚未建模,重定向类的内核函数同样尚未建模。
+
+\input{tables/sec-4-coverage}
+
+What the implementation covers is narrower than the definition of Section~\ref{sec:equiv}.
+% 实现覆盖的范围比 3.1 节的定义更窄。
+A back edge in the control flow graph makes the input a form the tool declines, so the present implementation handles loop-free programs only.
+% 控制流图中一旦出现回边,输入被判为不接受的形式,因此当前实现只处理无循环的程序。
+The scalar input of the equivalence query ranges over $[-1024, 1024]$ and the packet takes a default size of 64 bytes, so the query covers the inputs within that~range.
+% 等价查询中的标量输入取值于 [-1024, 1024],报文默认取 64 字节,查询覆盖的因此是这一范围内的输入。
+
+\subsection{The Harness}\label{sec:impl-harness}
+
+The harness separates building from execution.
+% 运行装置把构建与执行分开。
+Building happens inside containers, every run that touches the kernel happens in a local KVM guest or on a cloud instance, and the kernel of a guest is configured to stop on any kernel error.
+% 构建在容器内完成,所有触及内核的运行在本地 KVM 虚拟机或云实例上进行,虚拟机内核配置为遇到任何内核错误立即停止。
+The kernel is a fork of Linux 7.0-rc2 that adds live re-translation and support for native instructions~\cite{zheng2026kops}.
+% 内核是 Linux 7.0-rc2 的一个分叉,加入了在线重新翻译与原生指令支持。
+
+The three rewrite backends are implemented on that kernel.
+% 三种改写后端在这个内核上实现。
+Rewriting before load is a set of transformations applied to the bytecode ahead of loading, live re-translation comes from the kernel fork and can replace the machine code of a program while the program runs, and native instructions are added to the just-in-time compiler per processor~\cite{zheng2026kops}.
+% 装载前的字节码改写作为一组变换施加于程序装载之前,在线重新翻译由内核分叉提供,可以在程序运行期间替换它的机器码,原生指令按处理器加入即时编译器。
+
+Whichever backend a run uses, the run writes its parameters, its logs, and its counter readings into a self-describing directory, so the history of an exploration is data on disk.
+% 无论用哪种后端,每次运行都把参数、日志与计数器读数写成一个自描述的目录,一次探索的历史因此是磁盘上的数据。
+On the agent side we use Claude Code and Codex, which invoke the fixed entry points from a command line and read the directory left by the previous run between attempts~\cite{claudecode2025,openaicodex2025}.
+% agent 一侧使用 Claude Code 与 Codex,它们通过命令行调用固定入口,并在两次尝试之间读取上一次运行留下的目录。
+People only build the environment and start a session.
+% 人只负责搭建环境与启动会话。

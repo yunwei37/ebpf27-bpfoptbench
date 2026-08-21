@@ -1,0 +1,20 @@
+% 表:2026-06-27 同日四条件对比,x86 KVM,六应用固定负载,数值为逐会话几何平均后的总体几何平均。
+%   数据出处 code/corpus/results/x86_kvm_corpus_20260627_*,按程序名配对、保留阈值 100 次执行。
+%   noop 0.954(7 会话)、mixed 0.997(7)、k2 0.982(11)、merlin 1.004(7,区间 0.998-1.004)。
+\begin{table}[t]
+\footnotesize
+\centering
+\caption{Four conditions measured on the same day under the same tasks and workloads. A value below one means faster than the baseline phase of the same session.}
+% 表:同一天在相同任务与负载下测得的四种条件。数值小于 1 表示快于同一会话的基线阶段。
+\label{tab:sameday}
+\begin{tabular}{llr}
+\hline
+Condition & What it applies & Run-time ratio \\
+\hline
+No-change control & nothing & 0.954 \\
+Uniform policy & mixed bytecode passes & 0.997 \\
+K2 policy & search-based rewrites~\cite{xu2021synthesizing} & 0.982 \\
+Merlin policy & compile-time passes~\cite{mao2024merlin} & 1.004 \\
+\hline
+\end{tabular}
+\end{table}

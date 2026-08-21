@@ -1,0 +1,20 @@
+% 表:接受条件矩阵,2026-07-21 改版。所有格子填满(勾与叉显式),加"性质来源"列,eBPF 行加粗、两叉一横,
+% 图案一眼可读:前三行至少一个勾,末行全叉。
+\begin{table}[t]
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\centering
+\caption{Per-machine work accepted by systems ecosystems, the property each carries, and its source.}
+% 表:被生态接受的逐机器工作、各自具备的性质与性质的来源。
+\label{tab:acceptance}
+\begin{tabular}{lccl}
+\hline
+Per-machine work & Decidable & Revertible & Source \\
+\hline
+Load-time verification & \checkmark & $\times$ & binary load outcome \\
+DKMS module rebuilds & \checkmark & $\times$ & binary load outcome \\
+Managed-runtime speculation & $\times$ & \checkmark & deoptimization \\
+\textbf{eBPF optimization} & $\times$ & $\times$ & --- \\
+\hline
+\end{tabular}
+\end{table}

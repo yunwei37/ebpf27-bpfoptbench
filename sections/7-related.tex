@@ -1,0 +1,45 @@
+\section{Related Work}
+
+Three elements define this work, optimization on a live kernel, an LLM agent as the optimizer, and validation of the claims.
+% 本文的工作由三个要素定义,在真实内核上、由 LLM agent 做优化、优化声明被判定。
+Related work approaches this position along three lines, and each line lacks one of the elements.
+% 相关工作沿三条线逼近这个位置,每条线各缺一个要素。
+
+\noindent\textbf{Systems that optimize eBPF programs.}
+This line shares the optimization target with our work, and the optimizer is not an agent.
+% 这条线与本文优化对象相同,优化者不是 agent。
+K2 rewrites bytecode by stochastic search and attaches an equivalence proof to every output~\cite{xu2021synthesizing}, and EPSO moves the search offline, caching synthesized rewrite rules and applying them by matching~\cite{zhu2025epso}.
+% K2 用随机搜索改写字节码,给每个产物附等价证明,EPSO 把搜索移到离线,缓存合成的改写规则、在线以匹配套用。
+Merlin rewrites in one shot with fixed semantics-preserving rules~\cite{mao2024merlin}, and Morpheus specializes at run time with seven hand-written rules~\cite{miano2022morpheus}.
+% Merlin 按固定的保语义规则单发改写,Morpheus 在运行时以七条手写规则做特化。
+All four earn correctness from their own construction and freeze the transformation space before deployment, and none validates a gain on the machine where the program will deploy.
+% 四者都靠构造保证不改错,变换空间在部署前冻结,也没有一个在程序将要部署的机器上判定收益。
+Our work does the opposite, letting an untrusted optimizer explore openly while the environment validates correctness and benefit.
+% 本文相反,让不可信的优化器开放探索,正确性与收益由环境判定。
+
+\noindent\textbf{Benchmarks that validate agent code optimization.}
+This line shares the optimizer and the concern for validation with our work, and the venue is user space.
+% 这条线与本文优化者相同、判定关切相同,场所在用户态。
+KernelBench, GSO, and SWE-Perf let agents optimize GPU programs and real repositories freely, timing and auditing the results afterwards~\cite{ouyang2025kernelbench,shetty2025gso,he2026sweperf}.
+% KernelBench、GSO 与 SWE-Perf 让 agent 自由优化 GPU 程序与真实代码库,事后为结果计时与审查。
+Cheating followed, as o3 patched a benchmark's clock~\cite{metr2025details} and the 150$\times$ speedup claimed by the Sakana system fell to a memory-reuse exploit~\cite{sakana2025ai}.
+% 作弊随之出现,o3 改过基准的时钟,Sakana 系统宣称的 150 倍加速毁于一个内存重用漏洞。
+Later hardening builds the defense into the benchmark, as robust-kbench and SOL-ExecBench harden their correctness and timing checks against exploit kernels~\cite{lange2025robust,lin2026solexecbench}, and automated audits sweep existing benchmarks for the flaws that let cheating through~\cite{wang2026automated}.
+% 此后的加固把防线做进基准,robust-kbench 与 SOL-ExecBench 把正确性与计时检查加固到经得起作弊内核,自动化审计则逐个排查现有基准里放走作弊的缺陷。
+Detection after the fact presupposes a validator that outlives the subject, a premise that holds in user space and fails on a kernel, so our work enforces validation before a claim is accepted.
+% 事后检测的前提是检验者活得过被测者,这个前提在用户态成立,在内核上不成立,本文因此把判定放在声明被承认之前,由环境强制。
+
+\noindent\textbf{Models and agents on real kernels.}
+This line shares the place with our work and gives up either open exploration or validation.
+% 这条线与本文场所相同,缺开放探索,或缺判定。
+kGym compiles and boots real kernels to test crash-repair patches, and the model submits only text that the platform executes, so exploration inside the machine disappears with the isolation~\cite{mathai2024kgym}.
+% kGym 编译并启动真实内核来测试崩溃修复补丁,模型只提交文本,由平台代为执行,机内探索随隔离消失。
+Kgent generates eBPF programs with a model, and its outputs that pass the verifier yet miss the intended semantics show that safety verification does not cover semantics~\cite{zheng2024kgent}.
+% Kgent 用模型生成 eBPF 程序,通过验证器却语义错误的产物,恰好说明安全验证不覆盖语义。
+SchedCP lets agents optimize kernel schedulers through eBPF and states that such agents still lack a complete benchmark~\cite{zheng2025schedcp}.
+% SchedCP 让 agent 通过 eBPF 优化内核调度器,并自陈这类 agent 仍缺一个完整的基准。
+Our work keeps exploration inside the machine and replaces isolation with disposable virtual machines and a validation protocol.
+% 本文保留机内探索,以一次性虚拟机与判定协议代替隔离。
+
+To the best of our knowledge, \sys is the first system that lets an agent explore openly on a live kernel while enforcing validation before any claim is accepted.
+% 据我们所知,BPFGym 是第一个让 agent 在活内核上开放探索、同时在声明被承认之前强制判定的系统。

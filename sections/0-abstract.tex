@@ -1,0 +1,18 @@
+\begin{abstract}
+eBPF loads programs into the running Linux kernel and executes them on its hottest paths, so the efficiency of these programs translates directly into fleet cost.
+% eBPF 把程序装入运行中的 Linux 内核,让它们在最热的路径上执行,程序的效率因此直接影响机群成本。
+Such a program is optimized once on a build machine and distributed to all machines, yet the effect of the optimization is decided by the machine that loads it.
+% 这样的程序在构建机上优化一次,分发到所有机器,而优化的效果由装载它的机器决定。
+Serving every machine well therefore calls for rewriting the program for each machine separately.
+% 让每台机器都得到好的效果,因此要为每台机器分别改写程序。
+The hard part is not proposing the change but proving that the rewrite preserves the semantics of the program, and on ordinary code no such decision procedure is complete.
+% 难的不是提出改动,而是证明改写没有改变程序的语义,而一般代码上这样的判定过程不可能完备。
+On eBPF the restrictions that the kernel imposes for safety also confine equivalence to a finite question, which a machine can therefore decide.
+% 在 eBPF 上,内核为安全而施加的限制同时把等价限定成一个有限的问题,机器因而可以判定它。
+We build \sys, in which an untrusted LLM agent proposes rewrites and an equivalence checker accepts only those it proves equivalent to the original.
+% 我们据此构建 BPFTailor,由不可信的 LLM agent 提议改写,由等价检查器只接受被它证明与原程序等价的那些。
+Benefit admits no such proof and must be measured on the target machine, where repeated measurements with nothing changed already differ by as much as 14\%, so \sys measures that drift with no-change controls and accepts only the rewrites whose gain exceeds it.
+% 收益无法同样地证明,只能在目标机器上测量,而无改动的重复测量之间就相差可达 14%,因此 BPFTailor 以无改动对照量出这段漂移,只接受收益超过漂移的改写。
+On six production applications and 42 micro benchmarks, the checker decides most rewrites and withholds acceptance from the rest, and the gains that exceed the drift are real but few.
+% 在六个生产应用与 42 个微基准上,检查器判定了多数改写,对其余的不予接受,而超过漂移的收益真实但为数不多。
+\end{abstract}

@@ -1,0 +1,134 @@
+\section{\sys Design}\label{sec:design}
+
+\sys takes an eBPF program and a target machine and produces a new program that the system judges equivalent to the original and faster on that machine.
+% BPFTailor 接收一个 eBPF 程序与一台目标机器,产出一个被判定与原程序等价、并在这台机器上更快的新程序。
+An agent proposes the rewrite, the system first decides whether the rewrite is equivalent and then whether it is faster, and only a rewrite that passes both is accepted, as Figure~\ref{fig:arch} shows.
+% 改写由 agent 提出,先判定是否等价,再判定是否更快,两项都通过才被接受,图 3 展示这条管线。
+Section~\ref{sec:equiv} defines equivalence and delimits the range over which it can be decided, Section~\ref{sec:checker} describes the equivalence checker that decides it, Section~\ref{sec:agent} describes what the environment allows the agent to do, and Section~\ref{sec:benefit} describes how benefit is decided on the target machine.
+% 3.1 节定义等价并划出它可判定的范围,3.2 节描述做出判定的等价检查器,3.3 节描述环境对 agent 的约束,3.4 节描述收益如何在目标机器上判定。
+
+\begin{figure}[t]
+\centering
+\input{figures/sec-3-loop}
+\caption{The \sys pipeline. A proposed rewrite passes the equivalence checker and then the benefit decision before it is accepted.}
+% 图:BPFTailor 的管线。一次提出的改写先过等价检查器,再过收益判定,之后才被接受。
+\label{fig:arch}
+\end{figure}
+
+\subsection{The Decidable Fragment of Program Equivalence}\label{sec:equiv}
+
+Two programs are equivalent when the same input leaves the same result behind for an outside observer.
+% 两个程序等价,指的是在相同的输入下,外界观察到的结果相同。
+The input is the entire state at the moment execution begins, which covers the initial values of the registers, the contents of the maps the program reaches, and the packet and context buffers that the hook supplies.
+% 输入是程序开始执行时的整个状态,包括寄存器初值、它访问的 map 内容,以及挂载点提供的报文与上下文缓冲区。
+What an outside observer sees on termination is the return value, the final contents of every map, the final contents of the packet and context buffers, and, for a program that exits through a tail call, the target of that call and its arguments.
+% 外界观察到的结果是程序终止时的返回值、各个 map 的最终内容、报文与上下文缓冲区的最终内容,以及程序若以尾调用退出时的目标与参数。
+The definition says nothing about the instruction sequence, the execution path, or the run time of the two programs, which may differ~entirely.
+% 这个定义不涉及两个程序的指令序列、执行路径与耗时,它们可以完全不同。
+
+Under this definition a machine can decide equivalence, on the strength of the three restrictions of Section~\ref{sec:pipeline}.
+% 在这个定义之下,等价可以由机器判定,依据是 2.1 节所述的三条限制。
+For a program that uses no loop whose count is determined at run time, execution is bounded and every path unfolds into a finite formula.
+% 对于不含运行时才定次数的循环的程序,执行是有界的,每条路径都可以展开成一个有限的公式。
+The kernel functions such a program may call can be modeled one by one.
+% 这样的程序能调用的内核函数可以逐条建模。
+The results that have to be compared are the return value, the map contents, the buffers, and the tail-call target and arguments, and nothing else.
+% 需要比较的结果只有返回值、map 内容、缓冲区,以及尾调用的目标与参数。
+An equivalence query is therefore a first-order logic problem of finite size.
+% 一次等价查询因此是一个规模有限的一阶逻辑问题。
+
+Decidability holds over a fragment rather than over every eBPF program.
+% 可判定是对一个片段而言,不是对全部 eBPF 程序而言。
+Programs that loop a number of times fixed at run time, iteration constructs verified by convergence, and programs that call kernel functions or use map types that are not yet modeled all fall outside that fragment.
+% 以运行时决定的次数循环的程序、靠收敛性验证的迭代结构,以及用到尚未建模的内核函数或 map 类型的程序,都落在这个片段之外。
+For those the checker answers that it cannot decide, and an undecided rewrite is refused just as a non-equivalent one~is.
+% 对它们,检查器给出的结论是无法判定,而无法判定与不等价一样不放行。
+
+\subsection{The Equivalence Checker}\label{sec:checker}
+
+The equivalence checker takes the program before the rewrite and the program after it and returns one of three verdicts, equivalent, not equivalent, and undecided.
+% 等价检查器接收改写前后的两个程序,给出等价、不等价与无法判定三种结论之一。
+It first extracts the map definitions the two programs use and the instructions of the target section, then compiles each program into a formula that describes all of its execution paths.
+% 它先取出两个程序访问的 map 定义与目标段的指令,再把两个程序分别编译成描述其全部执行路径的公式。
+Before any comparison it checks each program alone for safety, the original first and the rewrite second.
+% 在比较之前,它对两个程序各做一次安全检查,先原程序,后改写。
+A program that may access memory out of bounds under symbolic execution ends the run with an undecided verdict.
+% 若某个程序在符号执行下可能越界,这次判定以无法判定结束。
+Only after both checks does it pose the equivalence query.
+% 两项检查都通过之后,它才提出等价查询。
+
+The equivalence query asks whether any input makes the results of the two programs differ.
+% 等价查询问的是,是否存在一个输入使两个程序观察到的结果不同。
+The query is an implication whose antecedent states that the two programs receive the same input and that the path formula of each holds, and whose consequent states that every result listed in Section~\ref{sec:equiv} agrees.
+% 查询写成一个蕴含式,前件是两个程序输入相同并且各自的路径公式成立,后件是 3.1 节所列各项结果逐一相等。
+The solver receives the negation of that implication.
+% 求解器收到的是这个蕴含式的否定。
+An unsatisfiable answer means the two programs are equivalent.
+% 不可满足意味着两个程序等价。
+A satisfiable answer yields a model, from which the checker reconstructs a concrete input that separates the two programs, and the verdict is not equivalent.
+% 可满足时求解器给出一个模型,检查器由此还原出一个能区分两个程序的具体输入,结论是不等价。
+The verdict is undecided when the solver returns no answer, when either program fails its safety check, and when a program falls outside what the checker models.
+% 求解器答不确定、任一程序未通过安全检查,或程序超出建模范围时,结论是无法判定。
+
+Anything beyond equivalence is outside the checker, and whether a program is safe remains the responsibility of the kernel verifier.
+% 等价之外的事情不归检查器管,程序是否安全仍由内核验证器负责。
+The equivalence checker works on a pair of programs and decides whether the rewrite changed the semantics.
+% 等价检查器针对一对程序,判定改写有没有改变语义。
+A rewrite is accepted only when the kernel verifier admits the rewritten program and the checker finds the pair equivalent.
+% 一次改写被接受,须内核验证器放行改写后的程序,且检查器判定这一对等价。
+When the checker finds two programs equivalent and the kernel verifier admits only one of them, the rejected program marks a point where the verifier~is~conservative.
+% 若等价检查器判定两个程序等价而内核验证器只接受其中一个,被拒的那个说明验证器在这一处偏保守。
+
+\subsection{Confinement of the Untrusted Agent}\label{sec:agent}
+
+The agent acts on the environment only through fixed entry points, and every run leaves a record of what it was asked to do.
+% agent 只能通过固定的入口作用于环境,而每次运行都留下一份记录,写明这次运行被要求做什么。
+The parameter list of an entry point is closed and holds four items, the rewrite to apply, the set of applications, the duration of the workload, and the number of samples.
+% 入口的参数表是封闭的,只包含四项,要施加的改写、应用集合、负载时长与采样次数。
+The parameters of every run are written into the record of that run for later inspection.
+% 每次运行的参数写入这次运行的记录,供事后复核。
+After each attempt the environment returns that record to the agent, which is what the next attempt builds on.
+% 每次尝试之后,环境把这份记录返回给 agent,作为下一次尝试的依据。
+
+The entry points bound not only what the agent may read but also what kind of rewrite it may propose.
+% 入口不只限制 agent 能读什么,也界定它能提出什么样的改写。
+One backend rewrites the bytecode before load, a second re-translates a loaded program while it runs, and a third adds native instructions to the in-kernel just-in-time compiler.
+% 一种后端在装载之前改写字节码,第二种在程序运行期间重新翻译它,第三种给内核的即时编译器增加原生指令。
+A new kind of rewrite enters as a new transformation that the agent implements, runs through the same entry points, and faces the same decisions.
+% 新的改写以 agent 实现的新变换进入,经同一组入口运行,受同一套判定约束。
+The space of rewrites is open in this sense, while the party that proposes them is not trusted.
+% 改写空间因此是开放的,而提出改写的一方不可信。
+
+An agent can take five actions that would defeat the decisions, and each one meets a mechanism of the environment.
+% agent 可以采取五种行为使判定失效,而每一种都对应环境中的一个机制。
+A rewrite with wrong semantics is reported as not equivalent by the checker.
+% 提交语义错误的改写会被等价检查器判为不等价。
+A fabricated measurement report takes no part in any decision, because every reading comes from the environment and is persisted together with the parameters that produced it.
+% 伪造测量报告不进入判定,因为每个读数都由环境产生,并与产生它的参数一同持久化。
+Reporting measurement noise as a gain is stopped by the control band of Section~\ref{sec:benefit}, and crashing a machine ends one run on a disposable kernel and nothing else.
+% 把测量噪声当作收益申报会被 3.4 节的对照带挡下,而弄崩机器只结束一台一次性内核上的运行。
+Reaching the environment outside the entry points, whether to run something the parameter list does not describe or to edit a record that has already been written, is a case the closed parameter list excludes by design, and Section~\ref{sec:discussion} reports how far the enforcement of that boundary has been~built.
+% 越过入口触及环境,无论是运行参数表之外的东西,还是改动已经写下的记录,这一情形由封闭的参数表在设计上排除,而这条边界的强制机制建到什么程度,由第 6 节报告。
+
+\subsection{Benefit Validation on the Target Machine}\label{sec:benefit}
+
+Equivalence can be decided, benefit cannot, and benefit has to be measured on the target machine under the target workload.
+% 等价可以判定,收益不能,它只能在目标机器上以目标负载测出来。
+The metric is the ratio of the rewritten to the baseline average run time per execution, aggregated as a geometric mean over a retained set of programs.
+% 度量是改写后与基线的每次执行平均耗时之比,在一个保留集合上取几何平均。
+Programs executed fewer than about one hundred times leave that set, for the reason Section~\ref{sec:whynot} gives.
+% 执行次数少于约一百次的程序被剔除出这个集合,原因是 2.3 节所示的低计数波动。
+
+The measured numbers are not to be trusted on their own either, so every measurement carries a control.
+% 测得的数值本身也不可信,因此每次测量都带对照。
+Two no-change controls run interleaved with the measured runs on the same tasks and workloads, one re-translating every program unchanged and one skipping the re-translation.
+% 两种无改动对照与被测运行在相同的任务与负载下交错进行,一种把每个程序原样重新翻译,一种连重新翻译都跳过。
+The apparent speedups that the controls read give a control band, and a claimed gain has to clear that band.
+% 对照读出的表观加速比给出一条对照带,声明的收益必须越过这条带。
+
+A rewrite is accepted only when three conditions hold together.
+% 一次改写被接受,须同时满足三项条件。
+The checker finds the rewrite equivalent to the original, the measured gain clears the control band, and the gain reproduces when the rewrite is replayed on a freshly booted virtual machine.
+% 等价检查器判定它与原程序等价,实测收益越过对照带,并且在一台新启动的虚拟机上重放时收益仍然复现。
+A rewrite that fails any one of the three is recorded as a failed attempt.
+% 任何一项不成立,这次改写记为一次失败的尝试。

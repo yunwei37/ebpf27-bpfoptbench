@@ -1,0 +1,32 @@
+% 表:失效覆盖矩阵,2026-07-21 改版。行是 3.1 节五类失效,列是八个机制,列头旋转、分 framework 与 benchmark 两组,
+% 勾表示"该机制收窄该失效"。图案即对账:每行至少一个勾;噪声行三个勾;机制名与 3.2/3.3 正文一致。
+\begin{table}[t]
+\scriptsize
+\centering
+\caption{Coverage of the five failure sources by the mechanisms of the framework and the benchmark.}
+% 表:framework 与 benchmark 的机制对五类失效源的覆盖。
+\label{tab:coverage}
+\setlength{\tabcolsep}{3.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\hline
+ & \multicolumn{3}{c}{Framework} & \multicolumn{5}{c}{Benchmark} \\
+Failure source
+ & \rotatebox{90}{Entry points}
+ & \rotatebox{90}{Measurements}
+ & \rotatebox{90}{Disp.\ kernels}
+ & \rotatebox{90}{Verifier}
+ & \rotatebox{90}{Hidden checks}
+ & \rotatebox{90}{Control band}
+ & \rotatebox{90}{Threshold}
+ & \rotatebox{90}{Replay} \\
+\hline
+Fabricated reports & & \checkmark & & & & & & \\
+Tampering with the environment & \checkmark & & & & & & & \\
+Wrong semantics & & & & \checkmark & \checkmark & & & \\
+Crashing the validator & & & \checkmark & & & & & \\
+Noise reported as gains & & & & & & \checkmark & \checkmark & \checkmark \\
+\hline
+\end{tabular}%
+}
+\end{table}

@@ -17,284 +17,48 @@
 \usepackage{array}
 \usepackage{tikz}
 \usepackage{graphicx}
-\usetikzlibrary{arrows.meta,positioning,decorations.pathreplacing}
+% \usepackage{enumitem}
+% \setlist{nosep,leftmargin=*}
+\usetikzlibrary{arrows.meta,positioning,decorations.pathreplacing,fit,backgrounds,calc}
 
 % commands
-\newcommand{\sys}{\texttt{bpf-bench}\xspace}
+\newcommand{\sys}{BPFTailor\xspace}
 
-\setlength{\textfloatsep}{4pt}
-\setlength{\floatsep}{4pt}
-\setlength{\intextsep}{4pt}
-\setlength{\abovecaptionskip}{2pt}
-\setlength{\belowcaptionskip}{-2pt}
+% \setlength{\textfloatsep}{4pt}
+% \setlength{\floatsep}{4pt}
+% \setlength{\intextsep}{4pt}
+% \setlength{\abovecaptionskip}{2pt}
+% \setlength{\belowcaptionskip}{-2pt}
 
-% Reduce space before sections
-\makeatletter
-\renewcommand\section{\@startsection{section}{1}{\z@}%
-  {-2ex \@plus -1ex \@minus -.2ex}%
-  {1ex \@plus .2ex}%
-  {\normalfont\Large\bfseries}}
-\makeatother
+% Reduce space before sections(2026-07-17 注释掉:触发 acmart 报错并中断 make)
+% \makeatletter
+% \renewcommand\section{\@startsection{section}{1}{\z@}%
+%   {-2ex \@plus -1ex \@minus -.2ex}%
+%   {1ex \@plus .2ex}%
+%   {\normalfont\Large\bfseries}}
+% \makeatother
 
 \begin{document}
 
-\title{\sys: Auto-Research for Agentic OS Kernel Extension Optimization}
+\title{\sys: Per-Machine Specialization of eBPF Programs through Proof-Checked Rewriting}
 
 % \author{Anonymous Authors}
 % \affiliation{\institution{Anonymous Institution}}
 % \renewcommand{\shortauthors}{Anonymous}
 
-\begin{abstract}
-OS kernel extensions such as eBPF are widely deployed on performance-critical paths.
-% eBPF 等内核扩展被广泛部署在性能关键路径上。
-Yet, optimizing these programs is hard because the verifier constrains the optimization space, which spans multiple layers including source code, LLVM backend, and kernel JIT, and optimization effects depend on kernel version and runtime state.
-% 优化这些程序很难，因为 verifier 约束优化空间，该空间跨越多层（源码、LLVM 后端、内核 JIT），且优化效果依赖内核版本和运行时状态。
-Static analysis cannot predict performance, and the same LLVM pass can speed up one program by 1.9$\times$ while slowing another by 14\%.
-% 静态分析无法预测性能，同一个 LLVM pass 可以让一个程序加速 1.9 倍却让另一个减速 14%。
-We formulate eBPF optimization as an iterative search problem where LLM agents can leverage semantic information, cross-domain knowledge, and adaptive strategies to improve performance and outperform traditional optimizers.
-% 我们将 eBPF 优化框定为一个迭代搜索问题，LLM agents 可以利用语义反馈、跨领域知识和自适应策略来改进性能并超越传统优化器。
-We present \sys, the first eBPF optimization auto-research framework, enabling safe isolation for kernel modifications, iterative exploration with bounded action spaces, and exploration context across the compilation pipeline, profiling data, and exploration history.
-% 我们提出 \sys，第一个 eBPF 优化自动研究框架，支持内核修改的安全隔离、有界动作空间的迭代探索、以及贯穿编译管线、profiling 数据和探索历史的探索上下文。
-We instantiate \sys as a benchmark covering 6 production applications with 146 programs and 42 micro benchmarks, and enforce hack detection with hidden correctness checks.
-% 我们将 \sys 实例化为一个 benchmark，涵盖 6 个生产应用的 146 个程序和 42 个微基准测试，并通过隐藏的正确性检查执行作弊检测。
-Our evaluation shows that \sys helps discover performance-improving code and algorithms with up to 34\% speedup and isolate crashes, using iterative exploration and cross-layer context to overcome the complexity that causes many optimization trials to regress or fail verification.
-% 我们的评估表明，\sys 帮助发现性能改进的代码和算法（最高 34% 加速）并隔离崩溃，通过迭代探索和跨层上下文克服导致许多优化尝试回归或验证失败的复杂性。
-\sys is available at \url{https://github.com/eunomia-bpf/bpf-bench}.
-\end{abstract}
+\input{sections/0-abstract}
 
 \maketitle
 \pagestyle{plain}
 
-\section{Background}
-
-\paragraph{eBPF pipeline.}
-eBPF is a kernel extension mechanism that runs programs on performance-critical paths for networking~\cite{cilium}, security~\cite{tetragon,falco}, and observability~\cite{bcc}.
-% eBPF 是一种内核扩展机制，在网络、安全和可观测性等性能关键路径上运行程序。
-Developers write eBPF programs in C or Rust, compile them with Clang/LLVM to BPF bytecode, and load them into the kernel where a verifier checks safety before JIT compilation to native code.
-% 开发者用 C 或 Rust 编写 eBPF 程序，用 Clang/LLVM 编译成 BPF 字节码，加载到内核中，由 verifier 检查安全性后 JIT 编译成原生代码。
-Each stage offers optimization opportunities, including source-level restructuring, LLVM backend tuning, and kernel JIT lowering with architecture-specific instructions.
-% 每个阶段都提供优化机会，包括源码级重构、LLVM 后端调优、以及使用架构特定指令的内核 JIT 降级。
-
-\paragraph{LLM agents and auto-research frameworks.}
-LLM agents reason about tasks and execute actions through tool calls~\cite{swebench2024,llmagentsesurvey2025}, and auto-research frameworks extend this paradigm to autonomous experimentation~\cite{gso2025,aiscientistv2,autoresearchvision,aiscientistsurvey,evoscientist,mlrcopilot,agentrxiv,researchgym}.
-% LLM agents 通过工具调用来推理任务并执行动作，自动研究框架将这一范式扩展到自主实验。
-Recent work has applied these frameworks to C++ algorithm optimization~\cite{pie2024}, loop scheduling~\cite{compilot2025,awarecompiler2025}, and GPU kernel generation~\cite{kernelbench2025,gso2025}.
-% 最近的工作已将这些框架应用于 C++ 算法优化、循环调度和 GPU kernel 生成。
-
-\section{Motivation}
-
-eBPF optimization faces unique challenges.
-% eBPF 优化面临独特挑战。
-eBPF programs span multiple optimization layers, from source restructuring, LLVM backend tuning to kernel JIT lowering, each with architecture-specific choices. An optimization beneficial at one layer may hurt at another, and the same pass that speeds up one program slows down another (Table~\ref{tab:motivation}).
-% eBPF 程序跨越多个优化层，从源码重构、LLVM 后端调优到内核 JIT 降级，每层都有架构特定的选择。一个层有益的优化可能在另一层有害，同一 pass 加速一个程序却减速另一个（表 1）。
-The verifier further constrains the optimization space and may reject transformations.
-% verifier 进一步约束优化空间，语义正确的变换可能被拒绝。
-Effects also depend on kernel version and runtime state, such as loaded maps and BTF types, so optimizations must be validated on the target environment.
-% 效果还依赖内核版本和运行时状态（如已加载的 map 和 BTF 类型），因此优化必须在目标环境上验证。
-Static analysis cannot predict what works, so the only trustworthy signal comes from execution on the target.
-% 静态分析无法预测什么有效，因此唯一可信的信号来自目标环境的执行。
-
-Existing tools take fixed approaches. K2~\cite{xu2021synthesizing} applies stochastic superoptimization to BPF bytecode as a one-shot optimizer, Merlin~\cite{mao2024merlin} combines LLVM IR and bytecode transformations but requires source access at compile time, and the LLVM BPF backend provides static peephole optimizations with uniform heuristics.
-% 现有工具采用固定方法。K2 作为一次性优化器对 BPF 字节码应用随机超优化，Merlin 结合 LLVM IR 和字节码变换但需要编译时源码访问，LLVM BPF 后端提供统一启发式的静态窥孔优化。
-These approaches all search within predefined transformation spaces, but none can understand why a transformation succeeds, generalize patterns across programs, or devise new optimization strategies toward deployment environments.
-% 这些方法都在预定义的变换空间内搜索，但没有一个能理解变换为何成功、跨程序归纳规律、或设计新的优化策略。
-
-\begin{table}[t]
-\footnotesize
-\centering
-\setlength{\tabcolsep}{3pt}
-\caption{Same optimization pass produces opposite effects across programs and architectures.}
-% 表 1：同一个优化 pass 在不同程序和架构上产生相反效果。
-\label{tab:motivation}
-\begin{tabular}{llr}
-\hline
-Target & Pass & Speedup \\
-\hline
-\multicolumn{3}{l}{\textit{Micro benchmarks (ARM64)}} \\
-Program A & bulk\_memory & 1.90$\times$ \\
-Program B & bulk\_memory & 0.86$\times$ \\
-\hline
-\multicolumn{3}{l}{\textit{Production apps (x86, same policy)}} \\
-BCC (8 tools) & all passes & 1.04$\times$ (4\% faster) \\
-OTEL profiler & all passes & 0.93$\times$ (7\% slower) \\
-\hline
-\multicolumn{3}{l}{\textit{Cross-architecture (Cilium)}} \\
-x86 & bulk\_memory & 1.28$\times$ (28\% faster) \\
-ARM64 & bulk\_memory & 0.93$\times$ (7\% slower) \\
-\hline
-\end{tabular}
-\end{table}
-
-\section{Framework Design}
-
-\sys enables agents to iteratively explore eBPF optimization strategies under real execution.
-% \sys 使 agents 能够在真实执行下迭代探索 eBPF 优化策略。
-The framework addresses four goals: (1) crash isolation so failed optimizations do not corrupt the host, (2) bounded action spaces that make search tractable and prevent reward hacking, (3) multi-layer feedback from verifier, JIT, and runtime that is persisted for querying and iterative refinement, and (4) a closed loop that drives agent exploration under budget constraints.
-% 框架解决四个目标：(1) 崩溃隔离使失败的优化不会破坏主机，(2) 有界动作空间使搜索可行并防止作弊，(3) 来自 verifier、JIT 和运行时的多层反馈，持久化以供查询和迭代改进，(4) 驱动 agent 在预算约束下进行循环探索。
-
-
-% \paragraph{Architecture.}
-Figure~\ref{fig:arch} shows the three-layer system architecture.
-% 图 1 展示了三层系统架构。
-Users provide the application source or binary, workload script, and expected correctness properties, and the framework optimizes toward target workloads, architecture, and kernel version, while previous work mainly focuses on general algorithms.
-% 用户提供应用源码或二进制、工作负载脚本和预期正确性属性，框架针对目标工作负载、架构和内核版本进行优化，而先前工作主要关注通用算法。
-Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and exploration context guides the next iteration.
-% agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，探索上下文指导下一次迭代。
-Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kops~\cite{kops2026} to safely extend the eBPF JIT with native operations.
-% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kops 安全扩展 eBPF JIT 以支持原生操作。
-The framework captures information across all layers into exploration context, from source changes through bytecode diffs, profiling data, verifier states, and JIT output to runtime maps and counters, enabling agents to correlate effects across the pipeline and history.
-% 框架捕获所有层的信息到探索上下文，从源码变更、字节码 diff、profiling 数据、verifier 状态、JIT 输出到运行时 map 和计数器，使 agent 能够关联 pipeline 各层的效果以及历史。
-
-% \begin{figure}[t]
-% \centering
-% \begin{tikzpicture}[
-%   bigbox/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=1.1cm},
-%   smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.55cm, minimum width=1.4cm, fill=white},
-%   label/.style={font=\normalsize\bfseries},
-%   arrowlabel/.style={font=\small},
-%   arrow/.style={-Latex, thick}
-% ]
-% % Agent layer
-% \node[bigbox, fill=blue!10] (agent) at (0,0) {};
-% \node[label, right=0.2cm of agent.east, anchor=west] {LLM Agent};
-% \node[smallbox] at ([xshift=-1.5cm]agent.center) (claude) {Claude};
-% \node[smallbox] at (agent.center) (codex) {Codex};
-% \node[smallbox] at ([xshift=1.5cm]agent.center) (otheragent) {$\cdots$};
-
-% % Framework layer
-% \node[bigbox, fill=orange!10] (framework) at (0,-1.6) {};
-% \node[label, right=0.2cm of framework.east, anchor=west] {Framework};
-% \node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
-% \node[smallbox] at (framework.center) (llvm) {LLVM};
-% \node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
-
-% % Execution layer
-% \node[bigbox, fill=green!10] (exec) at (0,-3.2) {};
-% \node[label, right=0.2cm of exec.east, anchor=west] {Execution};
-% \node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
-% \node[smallbox] at (exec.center) (kvm) {KVM};
-% \node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
-
-% % Arrows
-% \draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (framework.north);
-% \draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
-% \draw[arrow] (exec.west) -- ++(-0.5,0) |- node[left, arrowlabel, pos=0.25] {feedback} (agent.west);
-% \end{tikzpicture}
-% \caption{\sys closed loop: agents select strategies across source/LLVM/JIT layers, the framework deploys to Docker/KVM/AWS, and feedback guides iteration.}
-% % 图 1：\sys 闭环：agents 在 source/LLVM/JIT 层选择策略，框架部署到 Docker/KVM/AWS，反馈指导迭代。
-% \Description{Three-layer architecture: agent, framework, execution.}
-% \label{fig:arch}
-% \end{figure}
-
-\begin{figure}[!t]
-\centering
-\begin{tikzpicture}[
-  bigbox/.style={draw, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm},
-  layer/.style={draw, rounded corners=4pt, minimum width=5.4cm, minimum height=0.8cm},
-  smallbox/.style={draw, rounded corners=2pt, font=\small, minimum height=0.4cm, minimum width=1.4cm, fill=white},
-  label/.style={font=\normalsize\bfseries},
-  arrowlabel/.style={font=\small},
-  arrow/.style={-Latex, thick}
-]
-% Top layer - two boxes side by side
-\node[bigbox, fill=blue!10, minimum width=3cm] (apps) at (-1.6,0) {Apps + Workloads};
-\node[bigbox, fill=blue!10] (agent) at (1.8,0) {LLM Agent};
-
-% Framework layer
-\node[layer, fill=orange!10] (framework) at (0,-1.3) {};
-\node[smallbox] at ([xshift=-1.5cm]framework.center) (source) {Source};
-\node[smallbox] at (framework.center) (llvm) {LLVM};
-\node[smallbox] at ([xshift=1.5cm]framework.center) (jit) {Kernel JIT};
-
-% Execution layer
-\node[layer, fill=green!10] (exec) at (0,-2.7) {};
-\node[smallbox] at ([xshift=-1.5cm]exec.center) (docker) {Docker};
-\node[smallbox] at (exec.center) (kvm) {KVM};
-\node[smallbox] at ([xshift=1.5cm]exec.center) (aws) {AWS};
-
-% Arrows
-\draw[arrow] (apps.south) -- node[left, arrowlabel] {target} (apps.south |- framework.north);
-\draw[arrow] (agent.south) -- node[right, arrowlabel] {action} (agent.south |- framework.north);
-\draw[arrow] (framework.south) -- node[right, arrowlabel] {deploy} (exec.north);
-\draw[arrow] (exec.east) -- ++(0.5,0) |- node[right, arrowlabel, pos=0.25] {feedback} (agent.east);
-\end{tikzpicture}
-\caption{\sys closed loop: agents select optimization strategies, the framework deploys apps and workloads to isolated execution, and feedback guides iteration.}
-\label{fig:arch}
-\end{figure}
-
-% \paragraph{Process.}
-Each iteration follows a closed loop in which agents submit an optimization configuration, the framework executes it under budget constraints, and returns data including verifier logs, JIT output size, and per-program runtime counters.
-% 每次迭代遵循闭环，其中 agents 提交优化配置，框架在预算约束下执行，并返回数据，包括 verifier 日志、JIT 输出大小和每程序运行时计数器。
-The framework persists all history for cross-iteration learning, and enforces integrity constraints via OS-level policy~\cite{actplane2026}: agents interact only through \texttt{make} targets and cannot modify benchmark code, reduce workload duration, or fabricate results.
-% 框架持久化所有历史以支持跨迭代学习，并通过 OS 级策略强制执行完整性约束：agents 只能通过 make targets 交互，不能修改 benchmark 代码、减少工作负载时长或伪造结果。
-
-\section{Benchmark Design}
-
-The benchmark covers 6 production applications with 146 BPF programs.
-% benchmark 涵盖 6 个生产应用，共 146 个 BPF 程序。
-Networking apps (Cilium, Katran) use kernel pktgen~\cite{pktgen} to stress the datapath, while security and tracing apps (Tetragon, Tracee, BCC) use stress-ng~\cite{stressng} to generate high-rate syscall workloads, and OTEL uses interpreter hash loops for continuous profiling.
-% 网络应用（Cilium, Katran）使用内核 pktgen 压测数据路径，安全和追踪应用（Tetragon, Tracee, BCC）使用 stress-ng 生成高频系统调用负载，OTEL 使用解释器哈希循环进行持续 profiling。
-Additionally, 42 microbenchmarks isolate pure-bytecode execution and helper/map access under \texttt{BPF\_PROG\_TEST\_RUN}.
-% 另有 42 个微基准在 BPF\_PROG\_TEST\_RUN 下隔离纯字节码执行和 helper/map 访问。
-All benchmarks include hidden correctness tests to prevent reward hacking.
-% 所有 benchmark 都包含隐藏的正确性测试以防止作弊。
-
-% \paragraph{Metrics.}
-The benchmark measures both BPF-level and application-level impact.
-% benchmark 同时测量 BPF 级和应用级影响。
-BPF counters report per-program run count and latency (ns) between baseline and post-optimization phases, enabling per-program speedup analysis.
-% BPF 计数器报告基线和优化后阶段之间的每程序运行次数和延迟（ns），支持每程序加速分析。
-Application metrics capture workload throughput with BPF stats disabled to avoid measurement overhead.
-% 应用指标在禁用 BPF 统计的情况下捕获工作负载吞吐量以避免测量开销。
-
-\section{Preliminary Evaluation}
-
-\paragraph{Agent exploration process.}
-Using Claude Code~\cite{claudecode2025} (Opus 4.5) and Codex~\cite{openaicodex2025} (GPT-5.5) on x86 KVM (8 vCPUs, 64GB) and ARM64 AWS t4g.small with Kernel 7.0, LLM agents autonomously drove 2,640 benchmark sessions over 7 weeks (May 6 -- Jun 26, 2026), consuming 445M + 531M tokens with avg 7h per session (longest 19h), with human involvement limited to framework design (10.7K lines of Python) and triggering exploration, while optimization algorithm design was fully autonomous.
-% 使用 Claude Code 和 Codex 在 x86 KVM (8 vCPUs, 64GB) 和 ARM64 AWS t4g.small 上，LLM agents 在 7 周内（2026年5月6日-6月26日）自主驱动了 2,640 个 benchmark session，消耗 445M + 531M tokens，平均每 session 7h（最长 19h），人工参与仅限于框架设计和触发探索，算法设计全程无人工指导。
-Figure~\ref{fig:timeline} shows raw session results over time, and Figure~\ref{fig:convergence} shows how each app's best result evolved.
-% 图展示了原始 session 结果随时间变化，图展示了每个 app 的最佳结果演进。
-% 图 2 展示了每个 app 的最佳结果随探索尝试的演进。
-Across all sessions, program-level measurements show 2,487 improvements and 3,197 regressions. The verifier safely rejected 2,299 transformations, and $\sim$30 kernel crashes are isolated in KVM.
-
-\paragraph{Optimization results.}
-Figure~\ref{fig:layers} shows agent-discovered optimizations.
-% 图展示了每层的最佳逐应用结果。
-At the source layer, agents discovered application-specific optimizations like caching VIP metadata to avoid redundant map lookups, and lazily computing selector state and skipping empty selector loops.
-% 在源码层，agents 发现了应用特定的优化，如缓存 VIP 元数据避免重复 map 查找，延迟计算选择器状态并跳过空选择器循环。
-At the LLVM layer, agents design passes that replace map lookups with inlined values and coalesce byte-by-byte loads into 32/64-bit wide loads.
-% 在 LLVM 层，agents 设计 passes 将 map 查找替换为内联值，并将逐字节加载合并为 32/64 位宽加载。
-At the kernel JIT layer, Kops~\cite{kops2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
-% 在内核 JIT 层，Kops passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
-Comparing with traditional optimizers, K2~\cite{xu2021synthesizing} transformed only 3 programs with 2\% speedup, Merlin~\cite{mao2024merlin} achieved 4\% on Katran, while agent-discovered source optimizations achieved 12\%.
-% 与传统优化器相比，K2 仅变换了 3 个程序，加速 2%，Merlin 在 Katran 上实现 4%，而 agent 发现的源码优化达到 12%。
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{timeline.pdf}
-\caption{Exploration timeline (374 runs, May--Jun 2026).}
-% 图：探索时间线（374 runs，2026年5-6月）。
-\Description{Timeline scatter plot of benchmark sessions.}
-\label{fig:timeline}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{layers.pdf}
-\caption{Best results per layer. The same app may benefit from multiple layers.}
-% 图：每层最佳结果。同一 app 可从多层受益。
-\label{fig:layers}
-\Description{Bar chart showing best optimization results per layer.}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{convergence.pdf}
-\caption{Source-level convergence (best-so-far per attempt).}
-% 图：源码层收敛（每次尝试的最佳结果）。
-\Description{Convergence curves per app.}
-\label{fig:convergence}
-\end{figure}
+\input{sections/1-introduction}
+\input{sections/2-background}
+\input{sections/3-design}
+\input{sections/4-implementation}
+\input{sections/5-evaluation}
+\input{sections/6-discussion}
+\input{sections/7-related}
+\input{sections/8-conclusion}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{reference}

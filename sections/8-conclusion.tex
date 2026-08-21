@@ -1,0 +1,12 @@
+\section{Conclusion}
+
+\sys builds the two properties that per-machine optimization lacked, cheap revert of errors and decidable benefit, into the execution environment.
+% BPFGym 把逐机优化所欠缺的两条性质,错误可回退与收益可判定,做成了执行环境的性质。
+The framework confines every attempt of the untrusted agent to a disposable kernel, and the benchmark accepts only the claims that clear the control band, pass the hidden checks, and reproduce on replay.
+% framework 把不可信 agent 的每次尝试限制在一次性内核上,benchmark 只接受越过对照带、通过隐藏检查并在重放中复现的声明。
+The first results under this validation answer the opening question, as real gains exist yet are few and bound to the machine and the workload that produced them.
+% 这套判定给出的第一批结果回答了开篇的问题,真实的收益存在,但数量少,并与产生它的机器和负载绑定。
+Without the validation, most accepted claims would be false or unverifiable.
+% 不设判定,被接受的多数是或假或不可证实的声明。
+As agent capability improves, the answer to the opening question will change, and \sys subjects each new answer to the same validation.
+% agent 的能力还会提升,开篇问题的答案将随之改变,而 BPFGym 让每一次新的回答都经受同一套判定。

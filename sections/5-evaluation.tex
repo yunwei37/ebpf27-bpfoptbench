@@ -1,0 +1,75 @@
+\section{Evaluation}\label{sec:eval}
+
+This section evaluates \sys, first fixing the setup, then answering three questions and reporting how the framework behaved in operation.
+% 本节评估 BPFGym,先定下实验设置,再回答三个问题,并报告 framework 的运行情况。
+RQ1 asks how many false results would be accepted without enforced validation, RQ2 asks how much real gain the agents find after validation and how that compares with rule-based optimizers, and RQ3 asks whether a validated gain still holds on another machine and under another workload.
+% RQ1 问不做强制判定会接受多少不实的结果,RQ2 问判定之后 agent 找到多少真实收益、与规则式优化器相比如何,RQ3 问通过判定的收益换机器换负载之后是否仍然成立。
+The data fall into two classes.
+% 数据分两类。
+Results of controlled experiments enter the conclusions.
+% 受控实验的结果进入结论。
+The records of historical explorations were produced before the validation rule was in force, so they serve as the sample of RQ1 and as candidates for re-validation.
+% 历史探索的记录产生于判定规则生效之前,因此只作 RQ1 的样本与重判的候选。
+
+\noindent\textbf{Setup.}
+The setup fixes the agents, the platforms, the kernel, and the session procedure.
+% Setup 定下 agent、平台、内核与会话流程。
+The agents are Claude Code and Codex~\cite{claudecode2025,openaicodex2025}.
+% agent 用 Claude Code 与 Codex。
+The platforms are x86 KVM guests and ARM64 cloud instances.
+% 平台是 x86 的 KVM 虚拟机与 ARM64 的云实例。
+The kernel is a fork of Linux 7.0-rc2 that adds the live re-translation and the native operations~\cite{zheng2026kops}.
+% 内核是 Linux 7.0-rc2 的分叉,加入了在线重译与原生操作。
+A session follows the loop of Section~\ref{sec:design}, where the agent picks a configuration, launches runs through the entry points, and reads the persisted records between iterations, while humans only build the environment and start the session.
+% 会话按第 3 节的闭环进行,agent 选配置、经入口发起运行、在迭代之间读取持久化的记录,人只搭建环境与启动会话。
+% TODO(数据提取):会话总数、探索周期、token 消耗,由统计脚本从历史数据重算后填入。
+
+\noindent\textbf{The framework in operation.}
+The operation record tests the contribution of the framework, namely whether exploration stays safe under crash isolation.
+% 运行记录检验 framework 的贡献,即崩溃隔离下的探索是否安全。
+We report four counts, the number of sessions in the historical explorations, the number of kernel crashes among them, the number of crashes contained within a single virtual machine, and the number of crashes that damaged the host or the experiment.
+% 我们报告四个数,历史探索的会话数,其中内核崩溃的次数,崩溃被隔离在单台虚拟机内的次数,以及宿主或实验因崩溃受损的次数。
+We expect the last count to be zero, and if it is not, we account for~every~case.
+% 预期最后一个数为零,若不为零,逐例说明。
+% TODO(数据提取):四个数由统计脚本从历史会话产出。
+
+\noindent\textbf{RQ1: How many false results would be accepted without enforced validation?}
+This question tests the necessity of the validation rule.
+% 这个问题检验判定规则的必要性。
+The experiment has three steps.
+% 实验分三步。
+First, extraction scripts recompute the statistics of the historical sessions, the attempt counts, the regression and improvement counts, the verifier rejections, and the crashes, so that every number cited from these sessions can be recomputed.
+% 第一步,统计脚本重算历史会话的统计量,尝试次数、回归与改进计数、验证器拒绝数与崩溃数,让本文引自这批会话的每个数字可以复算。
+Second, we implement a minimal working version of the hidden checks and the replay.
+% 第二步,实现隐藏检查与重放的最小可用版本。
+Third, every result that an agent reported as a success in the historical sessions passes through the three gates of Section~\ref{sec:benchmark}, and we report three fractions, the fraction of claims that pass all three gates, the fraction that the hidden checks prove wrong, and the fraction that cannot be verified because the claim falls inside the control band or fails to reproduce on replay.
+% 第三步,历史会话里 agent 报告为成功的每一个结果,重新通过 3.3 节的三道关,报告三类比例,通过全部三道关的比例,被隐藏检查证明有错的比例,以及落在对照带内或重放不复现、因而无法证实的比例。
+% TODO(受控实验):判定门最小实现与历史声明重裁待做;三类比例待填。
+
+\noindent\textbf{RQ2: How much real gain do the agents find after full validation, and how do they compare with rule-based optimizers?}
+This question gives the validated yield of the agents and sets it against the rule-based optimizers.
+% 这个问题给出 agent 经判定的产出,并与规则式优化器对照。
+The experiment has five parts, and an optional sixth.
+% 实验分五项,外加可选的第六项。
+Every optimization the agents produce goes through the full validation, and the survivors form the result list.
+% agent 产生的全部优化经过完整判定,通过者构成结果清单。
+The strongest candidate from the ARM64 micro benchmarks, with a geometric mean of 1.208$\times$, faster on 24 benchmarks and slower on two, is re-validated with same-day controls.
+% ARM64 微基准的最强候选,几何平均 1.208 倍,24 个基准变快、两个变慢,补同日对照并重新判定。
+The x86 measurements are repeated with baseline and optimized runs interleaved on the same day, and the throughput readings receive their own no-change controls.
+% x86 的测量重做,基线与优化同日交错,吞吐读数补上自己的无改动对照。
+Validated agent results are compared under identical conditions with the compile-time Merlin baseline that runs through the same entry points~\cite{mao2024merlin}.
+% 通过判定的 agent 结果,与经同一入口运行的 Merlin 编译期基线同条件比较。
+They are also set against the self-reported numbers of K2 and EPSO, with the note that those numbers carry no noise control~\cite{xu2021synthesizing,zhu2025epso}.
+% 也与 K2 和 EPSO 文献自报的数字对照,注明其没有噪声对照。
+The optional sixth part runs the optimization backends without any agent, separating the gain of the backends from the gain of the agent's search.
+% 可选的第六项只运行优化后端、不用 agent,把收益在后端与 agent 的搜索之间分清来源。
+% TODO(受控实验):ARM64 候选重判与 x86 同日重测待跑;结果清单与对比数字待填。
+
+\noindent\textbf{RQ3: Does a validated gain survive another machine and another workload?}
+This question gives the scope of the conclusions.
+% 这个问题给出结论的适用范围。
+We take two or three validated results of RQ2, repeat the full validation on a second machine of the same instruction set and under a second workload, and report the fraction that still passes.
+% 我们从 RQ2 通过判定的结果里取两三个,在同指令集的另一台机器上、以及另一种负载下重复完整判定,报告仍然通过的比例。
+If every result still passes, the finding becomes instead that the gains migrate, and either outcome is informative.
+% 若全部仍然通过,结论改写为收益可以迁移,两种结果都有价值。
+% TODO(受控实验):迁移测试待跑;比例待填。

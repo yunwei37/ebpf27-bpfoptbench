@@ -1,0 +1,30 @@
+\section{Discussion and Limitations}\label{sec:discussion}
+
+The mechanisms of \sys divide into deployed and under construction.
+% BPFGym 的机制有已部署与在建之分。
+Crash isolation, the control runs, the cross-layer records, and the run history are deployed and carry every result reported above.
+% 崩溃隔离、对照运行、跨层记录与运行历史已经部署,支撑上文报告的全部结果。
+The entry-point confinement and the hidden checks are enforced by convention today, with their enforcing mechanism under construction, and the automated replay gate and the compile-time Merlin mode are under construction as well.
+% 入口约束与隐藏检查目前靠约定执行,其强制机制在建,重放的自动化门与 Merlin 的编译期模式同样在建。
+The historical explorations ran before these enforcing mechanisms, so they serve only as the sample of RQ1 and as candidates for re-validation.
+% 历史探索在这些强制机制之前进行,因此只作 RQ1 的样本与重判的候选。
+
+Several boundaries limit what the current results can claim.
+% 几条边界限制当前结果的适用范围。
+The corpus covers two instruction sets, and the control band was measured on an earlier version of the task set.
+% 语料覆盖两种指令集,对照带测自任务集的较早版本。
+Hidden checks give probabilistic assurance rather than proof, a trade of K2-style equivalence proofs for the ability to execute on the target~\cite{xu2021synthesizing}.
+% 隐藏检查给出的是概率性保证而非证明,这是用 K2 式的等价证明换取在目标机器上执行的取舍。
+Every measurement runs in a virtual machine or on a cloud instance, and whether a gain carries over to bare metal unchanged remains to be verified.
+% 所有测量在虚拟机与云实例上进行,收益是否原样迁移到裸机,仍待验证。
+Workload fidelity bounds every conclusion, because a gain validated under one workload may fade under another.
+% 负载保真度约束所有结论,一种负载下通过判定的收益,换一种负载可能消失。
+
+In return, a kernel offers agent research properties that are rare elsewhere.
+% 反过来,内核也为 agent 研究提供了少有的性质。
+Rewards here cannot be memorized, because performance exists only in execution on a machine.
+% 这里的奖励无法靠记忆获得,性能只存在于一台机器上的执行之中。
+A validated gain compounds across a fleet, and one scheduling heuristic that AlphaEvolve discovered recovered a measurable share of a hyperscaler's compute in the same way~\cite{deepmind2025alphaevolve}.
+% 通过判定的收益会在机群上累积,AlphaEvolve 发现的一个调度启发式,正是以同样的方式回收了超大规模机群可观的算力。
+The safety bar is also higher than in user space, because the agent's actions can reach the validator itself.
+% 这里的安全门槛也高于用户态,agent 的动作能够触及判定者本身。

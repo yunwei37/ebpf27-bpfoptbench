@@ -1,0 +1,21 @@
+% 表:六个生产应用、角色、负载与装载程序数(一次 x86 运行)。
+% 数据来源:corpus 运行 x86_kvm_corpus_20260622(装载计数);146 为满足运行次数阈值的可测子集,见正文。
+\begin{table}[t]
+\footnotesize
+\centering
+\caption{Production applications, workloads, and loaded BPF programs (one x86 run).}
+% 表:生产应用、负载与装载的 BPF 程序数(一次 x86 运行)。
+\label{tab:tasks}
+\begin{tabular}{lllr}
+\hline
+Application & Role & Workload & Programs \\
+\hline
+Cilium agent & container networking & pktgen & 62 \\
+Katran & load balancing & pktgen & 1 \\
+Tetragon & security observability & stress-ng & 234 \\
+Tracee & runtime security & stress-ng & 151 \\
+BCC (8 tools) & tracing & stress-ng & 25 \\
+OTEL profiler & continuous profiling & interpreter & 13 \\
+\hline
+\end{tabular}
+\end{table}

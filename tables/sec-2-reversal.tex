@@ -1,0 +1,24 @@
+% 表:效果反转证据,三对,每对两行,对间用横线分隔,不再用夹在中间的组头行。
+% 同策略跨程序(自家 ARM64 微基准,会话 20260606_001225,kernel/kernel_rejit 中位数);
+% 跨内核版本(Merlin 自报,其 Table 5);跨架构(自家 Cilium,两侧策略不同,标注初步、待同策略重跑)。
+\begin{table}[t]
+\footnotesize
+\centering
+\caption{The same optimization reverses its effect across programs and kernel versions. The first pair is two ARM64 micro benchmarks, and the cross-architecture pair is a preliminary measurement.}
+% 表:同一优化在程序与内核版本之间的效果反转。第一对是两个 ARM64 微基准,跨架构一对为初步测量。
+\label{tab:reversal}
+\begin{tabular}{llr}
+\hline
+Setting & Optimization & Effect \\
+\hline
+siphash\_rotate64\_mixer & kinsn policy & 1.90$\times$ faster \\
+bpftrace\_comm\_key\_fnv\_hash & kinsn policy & 14\% slower \\
+\hline
+Linux 5.19 & Merlin pass~\cite{mao2024merlin} & 12\% slower \\
+Linux 6.5 & Merlin pass~\cite{mao2024merlin} & 12\% faster \\
+\hline
+Cilium on x86 & mixed passes & 28\% faster \\
+Cilium on ARM64 & mixed passes & 7\% slower \\
+\hline
+\end{tabular}
+\end{table}
