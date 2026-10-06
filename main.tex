@@ -140,8 +140,8 @@ Users provide the application source or binary, workload script, and expected co
 % 用户提供应用源码或二进制、工作负载脚本和预期正确性属性，框架针对目标工作负载、架构和内核版本进行优化，而先前工作主要关注通用算法。
 Agents select optimization strategies, the framework executes them in Docker containers deployed to KVM or AWS VMs for kernel-level crash recovery, and exploration context guides the next iteration.
 % agents 选择优化策略，框架在部署到 KVM 或 AWS VM 的 Docker 容器中执行以提供内核级崩溃恢复，探索上下文指导下一次迭代。
-Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using KOperation~\cite{koperation2026} to safely extend the eBPF JIT with native operations.
-% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 KOperation 安全扩展 eBPF JIT 以支持原生操作。
+Optimization spans three compilation layers, from source restructuring through LLVM backend tuning to kernel JIT lowering, with the kernel layer using Kinsn~\cite{kinsn2026} to safely extend the eBPF JIT with native operations.
+% 优化跨越三个编译层，从源码重构到 LLVM 后端调优再到内核 JIT 降级，内核层使用 Kinsn 安全扩展 eBPF JIT 以支持原生操作。
 The framework captures information across all layers into exploration context, from source changes through bytecode diffs, profiling data, verifier states, and JIT output to runtime maps and counters, enabling agents to correlate effects across the pipeline and history.
 % 框架捕获所有层的信息到探索上下文，从源码变更、字节码 diff、profiling 数据、verifier 状态、JIT 输出到运行时 map 和计数器，使 agent 能够关联 pipeline 各层的效果以及历史。
 
@@ -264,8 +264,8 @@ At the source layer, agents discovered application-specific optimizations like c
 % 在源码层，agents 发现了应用特定的优化，如缓存 VIP 元数据避免重复 map 查找，延迟计算选择器状态并跳过空选择器循环。
 At the LLVM layer, agents design passes that replace map lookups with inlined values and coalesce byte-by-byte loads into 32/64-bit wide loads.
 % 在 LLVM 层，agents 设计 passes 将 map 查找替换为内联值，并将逐字节加载合并为 32/64 位宽加载。
-At the kernel JIT layer, KOperation~\cite{koperation2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
-% 在内核 JIT 层，KOperation passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
+At the kernel JIT layer, Kinsn~\cite{kinsn2026} passes emit x86 RORX for bit rotations, REP MOVSB for memory copies, and CMOV for branchless conditionals.
+% 在内核 JIT 层，Kinsn passes 生成 x86 RORX 用于位旋转，REP MOVSB 用于内存拷贝，CMOV 用于无分支条件。
 Comparing with traditional optimizers, K2~\cite{xu2021synthesizing} transformed only 3 programs with 2\% speedup, Merlin~\cite{mao2024merlin} achieved 4\% on Katran, while agent-discovered source optimizations achieved 12\%.
 % 与传统优化器相比，K2 仅变换了 3 个程序，加速 2%，Merlin 在 Katran 上实现 4%，而 agent 发现的源码优化达到 12%。
 
@@ -366,8 +366,8 @@ The \texttt{const\_prop} pass on 2026-05-06 showed 96.6\% EACCES rejection rate 
 Key lesson: bytecode transformations must preserve verifier type invariants that are invisible in bytecode alone.
 % 关键教训：字节码变换必须保留仅从字节码中不可见的 verifier 类型不变量。
 
-\subsection{Kernel JIT Optimization (KOperation)}
-% 内核 JIT 优化 (KOperation)
+\subsection{Kernel JIT Optimization (Kinsn)}
+% 内核 JIT 优化 (Kinsn)
 
 \subsubsection{cond\_select: Branch Predictability Determines CMOV Profitability}
 % cond_select：分支可预测性决定 CMOV 盈利性

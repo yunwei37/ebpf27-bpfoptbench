@@ -56,7 +56,7 @@ def load_corpus_data():
     for result_dir in sorted(CORPUS_DIR.iterdir()):
         if not result_dir.is_dir():
             continue
-        if 'kprog' in result_dir.name.lower() or 'kop' in result_dir.name.lower():
+        if 'kprog' in result_dir.name.lower() or 'kinsn' in result_dir.name.lower():
             continue
         
         ts = parse_timestamp(result_dir.name)
@@ -113,7 +113,7 @@ def load_micro_data():
     for result_dir in sorted(MICRO_DIR.iterdir()):
         if not result_dir.is_dir():
             continue
-        if 'kprog' in result_dir.name.lower() or 'kop' in result_dir.name.lower():
+        if 'kprog' in result_dir.name.lower() or 'kinsn' in result_dir.name.lower():
             continue
         
         ts = parse_timestamp(result_dir.name)
